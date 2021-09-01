@@ -1,0 +1,9 @@
+SettingsAsset(
+    style: Style(
+        outline: Rgba(red: 1, green: 1, blue: 1, alpha: 0.1),
+        line_width: 0.1,
+        margin: 0.1,
+    ),
+    board_size: Vec2(16,16),
+    camera_scale: 0.03,
+)
