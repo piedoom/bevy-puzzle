@@ -1,5 +1,4 @@
-use bevy::{asset::LoadState, prelude::*, render::camera::PerspectiveProjection};
-use bevy_egui::{egui, EguiContext, EguiPlugin};
+use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use pz::{PreloadingAssets, PuzzlePlugin};
 fn main() {
