@@ -4,6 +4,6 @@ SettingsAsset(
         line_width: 0.1,
         margin: 0.1,
     ),
-    board_size: Vec2(16,16),
+    board_size: Vec2(9,9),
     camera_scale: 0.03,
 )
