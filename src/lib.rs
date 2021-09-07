@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, iter::Peekable, marker::PhantomData, path::PathBuf};
+#![feature(duration_zero)]
+use std::{
+    collections::VecDeque, iter::Peekable, marker::PhantomData, path::PathBuf, time::Duration,
+};
 
 use bevy::{
     asset::{AssetLoader, BoxedFuture, LoadContext, LoadState, LoadedAsset},
@@ -7,12 +10,17 @@ use bevy::{
     prelude::*,
     reflect::TypeUuid,
     render::camera::{Camera, OrthographicProjection},
+    utils::Instant,
 };
 use bevy_asset_ron::RonAssetPlugin;
 use rand::{
     prelude::{IteratorRandom, SliceRandom},
     thread_rng,
 };
+mod timer;
+pub mod ui;
+
+pub use timer::{PlacementTimer, Timer};
 pub struct PuzzlePlugin;
 
 /// Single unit entity. Use components/children to add effects or whatever idk
@@ -59,12 +67,14 @@ impl Plugin for PuzzlePlugin {
             .init_resource::<Score>()
             .init_resource::<ActiveEntity>()
             .init_resource::<BlockResources>()
+            .insert_resource(PlacementTimer::from(Duration::from_millis(3000)))
             .init_resource::<Bag>()
             .init_resource::<Handle<SettingsAsset>>()
             .init_resource::<CursorPosition>()
             .add_asset::<Pattern>()
             .init_asset_loader::<PatternLoader>()
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
+            .add_system(ui::ui.system())
             .add_system_set(
                 // Load setup
                 SystemSet::on_enter(GameState::Load).with_system(load_setup.system()),
@@ -79,14 +89,14 @@ impl Plugin for PuzzlePlugin {
                     .with_system(rotate_active.system())
                     .with_system(add_sprite_to_tiles.system())
                     .with_system(active_follow_mouse.system())
-                    .with_system(commit_on_click.system())
+                    .with_system(commit.system())
                     .with_system(update_hovered_board_pieces.system())
                     .label("main"),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::Main)
                     .with_system(scorer.system())
-                    .with_system(score_scored.system())
+                    .with_system(scored_effect.system())
                     .after("main")
                     .before("styles"),
             )
@@ -199,8 +209,13 @@ fn game_setup(
     );
 
     // add a block to follow around the cursor or something
-    if let Some((_, pattern)) = patterns.iter().choose(&mut rand::thread_rng()) {
-        let a = pattern_builder::<states::Full>(&mut cmd, pattern, Default::default());
+    if let Some(pattern) = bag.next() {
+        let pattern = patterns.get(pattern).unwrap();
+        let a = pattern_builder::<states::Full>(
+            &mut cmd,
+            pattern,
+            Transform::from_xyz(0f32, 0f32, 7f32),
+        );
         cmd.entity(a).insert(ActiveEntity);
     }
 }
@@ -476,14 +491,7 @@ fn style_blocks(
     mut materials: ResMut<Assets<ColorMaterial>>,
     full: Query<(Entity, Option<&Color>), Added<states::Full>>,
     empty: Query<Entity, (Added<states::Empty>, With<selection::None>, With<GameBoard>)>,
-    scored: Query<
-        Entity,
-        (
-            Added<states::Scored>,
-            With<selection::None>,
-            With<GameBoard>,
-        ),
-    >,
+    scored: Query<Entity, Added<states::Scored>>,
     invalid: Query<
         Entity,
         (
@@ -505,6 +513,7 @@ fn style_blocks(
         (Entity, Option<&Color>),
         (With<states::Full>, Added<selection::None>, With<GameBoard>),
     >,
+    mut transforms: Query<&mut Transform>,
 ) {
     full.iter()
         .chain(uninvalidated.iter())
@@ -516,7 +525,10 @@ fn style_blocks(
                 color.cloned(),
                 &mut materials,
             );
+            let mut t = transforms.get_mut(entity).unwrap();
+            t.translation.z = 7.0;
         });
+
     empty.iter().chain(unhovered.iter()).for_each(|entity| {
         style(
             &mut cmd,
@@ -525,6 +537,8 @@ fn style_blocks(
             None,
             &mut materials,
         );
+        let mut t = transforms.get_mut(entity).unwrap();
+        t.translation.z = 7.0;
     });
     scored.for_each(|entity| {
         style(
@@ -543,6 +557,8 @@ fn style_blocks(
             None,
             &mut materials,
         );
+        let mut t = transforms.get_mut(entity).unwrap();
+        t.translation.z = 8.0;
     });
     hovered.for_each(|entity| {
         style(
@@ -552,10 +568,12 @@ fn style_blocks(
             None,
             &mut materials,
         );
+        let mut t = transforms.get_mut(entity).unwrap();
+        t.translation.z = 8.0;
     });
 }
 
-pub fn style(
+fn style(
     cmd: &mut Commands,
     entity: Entity,
     texture: Handle<Texture>,
@@ -570,8 +588,9 @@ pub fn style(
     cmd.entity(entity).insert(new_material.clone());
 }
 
-pub fn commit_on_click(
+pub fn commit(
     mut cmd: Commands,
+    mut timer: ResMut<PlacementTimer>,
     invalid: Query<(), With<selection::Invalid>>,
     hover: Query<Entity, (With<selection::Hover>, With<states::Empty>, With<GameBoard>)>,
     mouse: Res<Input<MouseButton>>,
@@ -582,7 +601,9 @@ pub fn commit_on_click(
     cursor: Res<CursorPosition>,
     mut bag: ResMut<Bag>,
 ) {
-    if mouse.just_pressed(MouseButton::Left) {
+    let timer_done = timer.done();
+    let mouse_pressed = mouse.just_pressed(MouseButton::Left);
+    if mouse_pressed || timer_done {
         // first, ensure there are no invalid blocks
         if invalid.iter().count() == 0 {
             if let Some(active_entity) = active.iter().next() {
@@ -603,38 +624,64 @@ pub fn commit_on_click(
                             }
                         };
                     }
-
-                    // commit
-                    hover.for_each(|e| {
-                        transition::<states::Empty, states::Full>(&mut cmd, e);
-                        transition::<selection::Hover, selection::None>(&mut cmd, e);
-                        cmd.entity(e).insert(color);
-                    });
-
-                    // reset the piece
-                    active.for_each(|e| cmd.entity(e).despawn_recursive());
-
-                    let pattern = bag.next().unwrap();
-                    let pattern = patterns.get(pattern).unwrap();
-                    let a = pattern_builder::<states::Full>(
-                        &mut cmd,
-                        pattern,
-                        Transform::from_xyz(cursor.global.x, cursor.global.y, 0f32),
-                    );
-                    cmd.entity(a).insert(ActiveEntity);
+                    commit_active_helper(&mut cmd, hover, color);
+                    reset_active_piece_helper(&mut cmd, &mut bag, active, patterns, cursor);
+                    if mouse_pressed {
+                        // reset the timer early if the mouse was pressed and we were successful
+                        timer.reset();
+                    }
                 }
+            }
+        } else {
+            if timer_done {
+                // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
+                todo!("you lose");
             }
         }
     }
 }
+
+/// Commits all hovered pieces with no checks to invalid pieces
+fn commit_active_helper(
+    mut cmd: &mut Commands,
+    hover: Query<Entity, (With<selection::Hover>, With<states::Empty>, With<GameBoard>)>,
+    color: Color,
+) {
+    hover.for_each(|e| {
+        transition::<states::Empty, states::Full>(&mut cmd, e);
+        transition::<selection::Hover, selection::None>(&mut cmd, e);
+        cmd.entity(e).insert(color);
+    });
+}
+
+fn reset_active_piece_helper(
+    mut cmd: &mut Commands,
+    bag: &mut Bag,
+    active: Query<Entity, With<ActiveEntity>>,
+    patterns: Res<Assets<Pattern>>,
+    cursor: Res<CursorPosition>,
+) {
+    active.for_each(|e| cmd.entity(e).despawn_recursive());
+
+    let pattern = bag.next().unwrap();
+    let pattern = patterns.get(pattern).unwrap();
+    let a = pattern_builder::<states::Full>(
+        &mut cmd,
+        pattern,
+        Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32),
+    );
+    cmd.entity(a).insert(ActiveEntity);
+}
+
 // if there is 5 full blocks in a full square, remove and score
 pub fn scorer(
     mut cmd: Commands,
-    board: Query<(Entity, &GlobalTransform), With<GameBoard>>,
     full_tiles: Query<(Entity, &Transform), With<states::Full>>,
+    transforms: Query<&Transform>,
+    mut score: ResMut<Score>,
 ) {
     let mut scoring_tiles = vec![];
-    board.for_each(|(_, t)| {
+    full_tiles.for_each(|(_, t)| {
         let mut possible_tiles = vec![];
         let mut scored = true;
 
@@ -660,25 +707,45 @@ pub fn scorer(
         }
     });
 
-    for e in scoring_tiles {
-        transition::<states::Full, states::Scored>(&mut cmd, e);
-    }
-}
+    // ensure scoring tiles does not contain duplicates
+    scoring_tiles.sort();
+    scoring_tiles.dedup();
 
-fn score_scored(
-    mut cmd: Commands,
-    mut score: ResMut<Score>,
-    scored: Query<Entity, With<states::Scored>>,
-) {
-    scored.for_each(|e| {
-        *score += 1;
-        cmd.entity(e).remove::<Color>();
-        transition::<states::Scored, states::Empty>(&mut cmd, e);
-        // manually reset selection state back to none no matter what state we are currently
+    for e in scoring_tiles {
+        // remove all states from scoring tiles manually
         cmd.entity(e)
             .remove::<selection::Invalid>()
             .remove::<selection::Hover>()
+            .remove::<states::Full>()
+            .remove::<Color>()
+            .insert(states::Empty)
             .insert(selection::None);
+        // spawn a scoring block
+        let mut transform = transforms.get(e).unwrap().clone();
+        transform.translation.z = 2f32;
+        cmd.spawn_bundle((
+            Tile,
+            GlobalTransform::from(transform.clone()),
+            transform.clone(),
+            states::Scored,
+            Timer::from(Duration::from_millis(1000)),
+        ));
+        *score += 1;
+    }
+}
+
+fn scored_effect(
+    mut cmd: Commands,
+    scored: Query<(Entity, &mut Transform, &Timer), With<states::Scored>>,
+) {
+    scored.for_each_mut(|(e, mut t, timer)| {
+        // shrink and delete when scale is too small
+        t.scale = t
+            .scale
+            .lerp(Vec3::new(0f32, 0f32, 2f32), timer.normalized());
+        if timer.done() {
+            cmd.entity(e).despawn_recursive();
+        }
     });
 }
 

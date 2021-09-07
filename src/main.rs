@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::prelude::*;
 use pz::{PreloadingAssets, PuzzlePlugin};
 fn main() {
@@ -16,5 +17,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(PuzzlePlugin)
         .add_plugin(ShapePlugin)
+        .add_plugin(EguiPlugin)
         .run();
 }
