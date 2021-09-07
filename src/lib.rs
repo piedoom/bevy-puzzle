@@ -1,14 +1,18 @@
-use std::{marker::PhantomData, path::PathBuf};
+use std::{collections::VecDeque, iter::Peekable, marker::PhantomData, path::PathBuf};
 
 use bevy::{
     asset::{AssetLoader, BoxedFuture, LoadContext, LoadState, LoadedAsset},
     ecs::component::Component,
+    input::keyboard::KeyboardInput,
     prelude::*,
     reflect::TypeUuid,
     render::camera::{Camera, OrthographicProjection},
 };
 use bevy_asset_ron::RonAssetPlugin;
-use rand::prelude::IteratorRandom;
+use rand::{
+    prelude::{IteratorRandom, SliceRandom},
+    thread_rng,
+};
 pub struct PuzzlePlugin;
 
 /// Single unit entity. Use components/children to add effects or whatever idk
@@ -17,12 +21,45 @@ pub struct Unit;
 /// Component that shows the `Unit` as highlighted
 pub struct Highlight;
 
+/// A random distribution of all pieces is in the bag
+#[derive(Default)]
+pub struct Bag {
+    // All possible patterns that can be played
+    patterns: Vec<Handle<Pattern>>,
+    queue: VecDeque<Handle<Pattern>>,
+}
+
+impl Bag {
+    pub fn new(patterns: Vec<Handle<Pattern>>) -> Self {
+        Self {
+            patterns,
+            queue: Default::default(),
+        }
+    }
+}
+
+impl Iterator for Bag {
+    type Item = Handle<Pattern>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // add more pieces if we have no more
+        if self.queue.len() == 0 {
+            self.patterns.shuffle(&mut thread_rng());
+            for pattern in &self.patterns {
+                self.queue.push_back(pattern.clone());
+            }
+        }
+        self.queue.pop_front()
+    }
+}
+
 impl Plugin for PuzzlePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(GameState::Load)
             .init_resource::<Score>()
             .init_resource::<ActiveEntity>()
             .init_resource::<BlockResources>()
+            .init_resource::<Bag>()
             .init_resource::<Handle<SettingsAsset>>()
             .init_resource::<CursorPosition>()
             .add_asset::<Pattern>()
@@ -39,6 +76,7 @@ impl Plugin for PuzzlePlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::Main)
                     .with_system(input_system.system())
+                    .with_system(rotate_active.system())
                     .with_system(add_sprite_to_tiles.system())
                     .with_system(active_follow_mouse.system())
                     .with_system(commit_on_click.system())
@@ -79,7 +117,8 @@ fn load_setup(
     loading.0.push(settings_handle.clone_untyped());
 
     // load all block patterns
-    loading.0.append(&mut assets.load_folder("blocks").unwrap());
+    let patterns = &mut assets.load_folder("blocks").unwrap();
+    loading.0.append(patterns);
 
     // load textures
     let mut load_tex = |path: &'static str| {
@@ -125,6 +164,7 @@ fn game_setup(
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
+    mut bag: ResMut<Bag>,
 ) {
     let settings = settings.get(settings_handle.clone()).unwrap();
     let (size_x, size_y) = (settings.board_size.x, settings.board_size.y);
@@ -149,6 +189,14 @@ fn game_setup(
     let mut camera_bundle = OrthographicCameraBundle::new_2d();
     camera_bundle.orthographic_projection.scale = settings.camera_scale;
     cmd.spawn_bundle(camera_bundle).insert(trans);
+
+    // Add pieces to the bag
+    *bag = Bag::new(
+        patterns
+            .iter()
+            .map(|(x, _)| patterns.get_handle(x))
+            .collect(),
+    );
 
     // add a block to follow around the cursor or something
     if let Some((_, pattern)) = patterns.iter().choose(&mut rand::thread_rng()) {
@@ -274,7 +322,7 @@ impl Pattern {
                 }
                 '\n' => {
                     cur.x = 0f32;
-                    cur.y += 1.0;
+                    cur.y -= 1.0;
                 }
                 e => warn!("unrecognized char \"{}\" in pattern", e),
             };
@@ -328,10 +376,13 @@ pub fn pattern_builder<T: Component + Default>(
     cmd.spawn_bundle((transform.clone(), GlobalTransform::from(transform.clone())))
         .with_children(|p| {
             for block in pattern.blocks.iter() {
+                // TODO: adjust the 0.5 constant offset to allow for more natural (and dynamic) rotations
+                // based off of block size. We likely will need to determine this when loading the asset
+                let transform = Transform::from_xyz(block.x - 0.5, block.y + 0.5, 1f32);
                 p.spawn_bundle((
                     T::default(),
-                    Transform::from_xyz(block.x, block.y, 1f32),
-                    GlobalTransform::from_xyz(block.x, block.y, 1f32),
+                    transform,
+                    GlobalTransform::from(transform),
                     pattern.color.clone(),
                     Tile,
                 ));
@@ -424,12 +475,36 @@ fn style_blocks(
     styles: Res<BlockResources>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     full: Query<(Entity, Option<&Color>), Added<states::Full>>,
-    empty: Query<Entity, (Added<states::Empty>, With<selection::None>)>,
-    scored: Query<Entity, (Added<states::Scored>, With<selection::None>)>,
-    invalid: Query<Entity, (With<states::Full>, Added<selection::Invalid>)>,
-    hovered: Query<Entity, (With<states::Empty>, Added<selection::Hover>)>,
-    unhovered: Query<Entity, (With<states::Empty>, Added<selection::None>)>,
-    uninvalidated: Query<(Entity, Option<&Color>), (With<states::Full>, Added<selection::None>)>,
+    empty: Query<Entity, (Added<states::Empty>, With<selection::None>, With<GameBoard>)>,
+    scored: Query<
+        Entity,
+        (
+            Added<states::Scored>,
+            With<selection::None>,
+            With<GameBoard>,
+        ),
+    >,
+    invalid: Query<
+        Entity,
+        (
+            With<states::Full>,
+            Added<selection::Invalid>,
+            With<GameBoard>,
+        ),
+    >,
+    hovered: Query<
+        Entity,
+        (
+            With<states::Empty>,
+            Added<selection::Hover>,
+            With<GameBoard>,
+        ),
+    >,
+    unhovered: Query<Entity, (With<states::Empty>, Added<selection::None>, With<GameBoard>)>,
+    uninvalidated: Query<
+        (Entity, Option<&Color>),
+        (With<states::Full>, Added<selection::None>, With<GameBoard>),
+    >,
 ) {
     full.iter()
         .chain(uninvalidated.iter())
@@ -505,6 +580,7 @@ pub fn commit_on_click(
     children: Query<&Children>,
     patterns: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
+    mut bag: ResMut<Bag>,
 ) {
     if mouse.just_pressed(MouseButton::Left) {
         // first, ensure there are no invalid blocks
@@ -538,14 +614,14 @@ pub fn commit_on_click(
                     // reset the piece
                     active.for_each(|e| cmd.entity(e).despawn_recursive());
 
-                    if let Some((_, pattern)) = patterns.iter().choose(&mut rand::thread_rng()) {
-                        let a = pattern_builder::<states::Full>(
-                            &mut cmd,
-                            pattern,
-                            Transform::from_xyz(cursor.global.x, cursor.global.y, 0f32),
-                        );
-                        cmd.entity(a).insert(ActiveEntity);
-                    }
+                    let pattern = bag.next().unwrap();
+                    let pattern = patterns.get(pattern).unwrap();
+                    let a = pattern_builder::<states::Full>(
+                        &mut cmd,
+                        pattern,
+                        Transform::from_xyz(cursor.global.x, cursor.global.y, 0f32),
+                    );
+                    cmd.entity(a).insert(ActiveEntity);
                 }
             }
         }
@@ -589,7 +665,7 @@ pub fn scorer(
     }
 }
 
-pub fn score_scored(
+fn score_scored(
     mut cmd: Commands,
     mut score: ResMut<Score>,
     scored: Query<Entity, With<states::Scored>>,
@@ -604,6 +680,18 @@ pub fn score_scored(
             .remove::<selection::Hover>()
             .insert(selection::None);
     });
+}
+
+fn rotate_active(
+    mut active: Query<&mut Transform, With<ActiveEntity>>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.just_pressed(KeyCode::R) {
+        active
+            .single_mut()
+            .map(|mut t| t.rotate(Quat::from_rotation_z(90f32.to_radians())))
+            .ok();
+    }
 }
 
 /// Marker that means the block is part of the game board
