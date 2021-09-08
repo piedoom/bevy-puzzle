@@ -29,6 +29,25 @@ pub struct Unit;
 /// Component that shows the `Unit` as highlighted
 pub struct Highlight;
 
+#[derive(Default)]
+pub struct Hold(Option<Pattern>);
+
+impl Hold {
+    pub fn get(&self) -> Option<&Pattern> {
+        self.0.as_ref()
+    }
+
+    pub fn set(&mut self, pattern: Pattern) {
+        self.0 = Some(pattern);
+    }
+
+    pub fn swap(&mut self, pattern: Pattern) -> Option<Pattern> {
+        let ret = self.get().cloned();
+        self.set(pattern);
+        ret
+    }
+}
+
 /// A random distribution of all pieces is in the bag
 #[derive(Default)]
 pub struct Bag {
@@ -71,6 +90,7 @@ impl Plugin for PuzzlePlugin {
             .init_resource::<Bag>()
             .init_resource::<Handle<SettingsAsset>>()
             .init_resource::<CursorPosition>()
+            .init_resource::<Hold>()
             .add_asset::<Pattern>()
             .init_asset_loader::<PatternLoader>()
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
@@ -87,6 +107,7 @@ impl Plugin for PuzzlePlugin {
                 SystemSet::on_update(GameState::Main)
                     .with_system(input_system.system())
                     .with_system(rotate_active.system())
+                    .with_system(add_to_hold.system())
                     .with_system(add_sprite_to_tiles.system())
                     .with_system(active_follow_mouse.system())
                     .with_system(commit.system())
@@ -171,6 +192,8 @@ fn load_transition(
 
 fn game_setup(
     mut cmd: Commands,
+    active: Query<Entity, With<ActiveEntity>>,
+    cursor: Res<CursorPosition>,
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
@@ -209,15 +232,8 @@ fn game_setup(
     );
 
     // add a block to follow around the cursor or something
-    if let Some(pattern) = bag.next() {
-        let pattern = patterns.get(pattern).unwrap();
-        let a = pattern_builder::<states::Full>(
-            &mut cmd,
-            pattern,
-            Transform::from_xyz(0f32, 0f32, 7f32),
-        );
-        cmd.entity(a).insert(ActiveEntity);
-    }
+    let pattern = bag.next().unwrap();
+    set_active_pattern_helper(&mut cmd, &active, patterns.get(pattern).unwrap(), cursor);
 }
 
 #[derive(Default)]
@@ -388,22 +404,26 @@ pub fn pattern_builder<T: Component + Default>(
     pattern: &Pattern,
     transform: Transform,
 ) -> Entity {
-    cmd.spawn_bundle((transform.clone(), GlobalTransform::from(transform.clone())))
-        .with_children(|p| {
-            for block in pattern.blocks.iter() {
-                // TODO: adjust the 0.5 constant offset to allow for more natural (and dynamic) rotations
-                // based off of block size. We likely will need to determine this when loading the asset
-                let transform = Transform::from_xyz(block.x - 0.5, block.y + 0.5, 1f32);
-                p.spawn_bundle((
-                    T::default(),
-                    transform,
-                    GlobalTransform::from(transform),
-                    pattern.color.clone(),
-                    Tile,
-                ));
-            }
-        })
-        .id()
+    cmd.spawn_bundle((
+        transform.clone(),
+        GlobalTransform::from(transform.clone()),
+        pattern.clone(),
+    ))
+    .with_children(|p| {
+        for block in pattern.blocks.iter() {
+            // TODO: adjust the 0.5 constant offset to allow for more natural (and dynamic) rotations
+            // based off of block size. We likely will need to determine this when loading the asset
+            let transform = Transform::from_xyz(block.x - 0.5, block.y + 0.5, 1f32);
+            p.spawn_bundle((
+                T::default(),
+                transform,
+                GlobalTransform::from(transform),
+                pattern.color.clone(),
+                Tile,
+            ));
+        }
+    })
+    .id()
 }
 
 pub type ActiveCoordinates = Vec<Vec2>;
@@ -625,7 +645,12 @@ pub fn commit(
                         };
                     }
                     commit_active_helper(&mut cmd, hover, color);
-                    reset_active_piece_helper(&mut cmd, &mut bag, active, patterns, cursor);
+                    set_active_pattern_helper(
+                        &mut cmd,
+                        &active,
+                        patterns.get(bag.next().unwrap()).unwrap(),
+                        cursor,
+                    );
                     if mouse_pressed {
                         // reset the timer early if the mouse was pressed and we were successful
                         timer.reset();
@@ -654,23 +679,22 @@ fn commit_active_helper(
     });
 }
 
-fn reset_active_piece_helper(
+/// Set the active pattern to the newly provided pattern
+fn set_active_pattern_helper(
     mut cmd: &mut Commands,
-    bag: &mut Bag,
-    active: Query<Entity, With<ActiveEntity>>,
-    patterns: Res<Assets<Pattern>>,
+    active: &Query<Entity, With<ActiveEntity>>,
+    pattern: &Pattern,
     cursor: Res<CursorPosition>,
-) {
+) -> Entity {
     active.for_each(|e| cmd.entity(e).despawn_recursive());
 
-    let pattern = bag.next().unwrap();
-    let pattern = patterns.get(pattern).unwrap();
-    let a = pattern_builder::<states::Full>(
+    let entity = pattern_builder::<states::Full>(
         &mut cmd,
         pattern,
         Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32),
     );
-    cmd.entity(a).insert(ActiveEntity);
+    cmd.entity(entity).insert(ActiveEntity);
+    entity
 }
 
 // if there is 5 full blocks in a full square, remove and score
@@ -753,11 +777,43 @@ fn rotate_active(
     mut active: Query<&mut Transform, With<ActiveEntity>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
-    if keyboard.just_pressed(KeyCode::R) {
-        active
-            .single_mut()
-            .map(|mut t| t.rotate(Quat::from_rotation_z(90f32.to_radians())))
-            .ok();
+    let right_pressed = keyboard.just_pressed(KeyCode::D);
+    let left_pressed = keyboard.just_pressed(KeyCode::A);
+    if right_pressed || left_pressed {
+        let multiplier = if right_pressed {
+            -1f32
+        } else if left_pressed {
+            1f32
+        } else {
+            0f32
+        };
+        let rot = Quat::from_rotation_z(multiplier * 90f32.to_radians());
+
+        active.single_mut().map(|mut t| t.rotate(rot)).ok();
+    }
+}
+
+fn add_to_hold(
+    mut cmd: Commands,
+    mut bag: ResMut<Bag>,
+    mut hold: ResMut<Hold>,
+    unswappable: Query<&Unswappable>,
+    active: Query<Entity, With<ActiveEntity>>,
+    active_pattern: Query<&Pattern, With<ActiveEntity>>,
+    keyboard: Res<Input<KeyCode>>,
+    cursor_pos: Res<CursorPosition>,
+    patterns: Res<Assets<Pattern>>,
+) {
+    // TODO: probably should check if unswappable is in the active entity instead of just existing
+    if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
+        let new_pattern = hold.swap(active_pattern.single().unwrap().clone());
+        let active_entity = set_active_pattern_helper(
+            &mut cmd,
+            &active,
+            &new_pattern.unwrap_or(patterns.get(bag.next().unwrap()).unwrap().clone()),
+            cursor_pos,
+        );
+        cmd.entity(active_entity).insert(Unswappable);
     }
 }
 
@@ -820,3 +876,7 @@ impl TransformExt for GlobalTransform {
         Vec2::new(t.x.round(), t.y.round())
     }
 }
+
+/// Marks an active entity as unswappable. This is useful to prevent constant swapping between the hold
+#[derive(Default)]
+struct Unswappable;
