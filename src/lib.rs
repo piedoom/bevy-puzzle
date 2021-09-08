@@ -803,6 +803,7 @@ fn add_to_hold(
     keyboard: Res<Input<KeyCode>>,
     cursor_pos: Res<CursorPosition>,
     patterns: Res<Assets<Pattern>>,
+    mut placement_timer: ResMut<PlacementTimer>,
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
@@ -814,6 +815,8 @@ fn add_to_hold(
             cursor_pos,
         );
         cmd.entity(active_entity).insert(Unswappable);
+        // also reset the timer when swapping
+        placement_timer.reset();
     }
 }
 
