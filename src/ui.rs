@@ -4,22 +4,27 @@ use bevy_egui::{
     EguiContext,
 };
 
-use crate::{ActiveEntity, Hold, Pattern, PlacementTimer, Score};
+use crate::{ActiveEntity, Bag, GameState, Hold, Pattern, PlacementTimer, Score};
 
 pub(crate) fn ui(
     ctx: ResMut<EguiContext>,
     score: Res<Score>,
     place_timer: Res<PlacementTimer>,
     hold: Res<Hold>,
+    mut bag: ResMut<Bag>,
+    patterns: Res<Assets<Pattern>>,
 ) {
     egui::SidePanel::right("panel")
         .default_width(300f32)
         .show(ctx.ctx(), |ui| {
             ui.vertical(|ui| {
                 ui.label(format!("Score: {}", score.to_string()));
-                // hold
 
-                ui.add(HoldWidget::new(hold.get()));
+                let next_pattern = patterns.get(bag.peek()).unwrap();
+                ui.add(PatternWidget::new(Some(next_pattern)));
+
+                // hold
+                ui.add(PatternWidget::new(hold.get()).size(80f32));
 
                 // timer thing
                 let (res, paint) = ui
@@ -31,17 +36,26 @@ pub(crate) fn ui(
         });
 }
 
-/// Shows the next up piece
-pub struct HoldWidget<'a> {
-    pattern: Option<&'a Pattern>,
-    color: Color32,
-    size: Option<f32>,
+pub(crate) fn menu_ui(ctx: ResMut<EguiContext>, mut state: ResMut<State<GameState>>) {
+    egui::CentralPanel::default().show(ctx.ctx(), |ui| {
+        if ui.button("Start").clicked() {
+            state.set(GameState::Main).ok();
+        }
+    });
 }
-impl<'a> HoldWidget<'a> {
+
+/// Shows the next up piece or piece in hold
+#[derive(Default)]
+pub struct PatternWidget<'a> {
+    pub pattern: Option<&'a Pattern>,
+    pub color: Color32,
+    pub size: Option<f32>,
+}
+impl<'a> PatternWidget<'a> {
     pub fn new(pattern: Option<&'a Pattern>) -> Self {
         Self {
             pattern: pattern,
-            size: Some(100f32),
+            size: None,
             color: pattern
                 .map(|x| {
                     Color32::from_rgb(
@@ -53,9 +67,14 @@ impl<'a> HoldWidget<'a> {
                 .unwrap_or(Color32::WHITE),
         }
     }
+
+    pub fn size(mut self, size: f32) -> Self {
+        self.size = Some(size);
+        self
+    }
 }
 
-impl<'a> Widget for HoldWidget<'a> {
+impl<'a> Widget for PatternWidget<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         let size = self.size.unwrap_or(ui.available_width());
         // allocate a square

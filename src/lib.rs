@@ -49,11 +49,11 @@ impl Hold {
 }
 
 /// A random distribution of all pieces is in the bag
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Bag {
     // All possible patterns that can be played
     patterns: Vec<Handle<Pattern>>,
-    queue: VecDeque<Handle<Pattern>>,
+    pub queue: VecDeque<Handle<Pattern>>,
 }
 
 impl Bag {
@@ -61,6 +61,21 @@ impl Bag {
         Self {
             patterns,
             queue: Default::default(),
+        }
+    }
+
+    pub fn peek(&mut self) -> Handle<Pattern> {
+        if self.queue.len() == 0 {
+            self.refresh()
+        }
+        self.queue.iter().peekable().peek().unwrap().clone().clone()
+    }
+
+    /// Adds more tiles
+    pub fn refresh(&mut self) {
+        self.patterns.shuffle(&mut thread_rng());
+        for pattern in &self.patterns {
+            self.queue.push_back(pattern.clone());
         }
     }
 }
@@ -71,10 +86,7 @@ impl Iterator for Bag {
     fn next(&mut self) -> Option<Self::Item> {
         // add more pieces if we have no more
         if self.queue.len() == 0 {
-            self.patterns.shuffle(&mut thread_rng());
-            for pattern in &self.patterns {
-                self.queue.push_back(pattern.clone());
-            }
+            self.refresh();
         }
         self.queue.pop_front()
     }
@@ -94,7 +106,6 @@ impl Plugin for PuzzlePlugin {
             .add_asset::<Pattern>()
             .init_asset_loader::<PatternLoader>()
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
-            .add_system(ui::ui.system())
             .add_system_set(
                 // Load setup
                 SystemSet::on_enter(GameState::Load).with_system(load_setup.system()),
@@ -102,6 +113,7 @@ impl Plugin for PuzzlePlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::Load).with_system(load_transition.system()),
             )
+            .add_system_set(SystemSet::on_update(GameState::Menu).with_system(ui::menu_ui.system()))
             .add_system_set(SystemSet::on_enter(GameState::Main).with_system(game_setup.system()))
             .add_system_set(
                 SystemSet::on_update(GameState::Main)
@@ -112,6 +124,7 @@ impl Plugin for PuzzlePlugin {
                     .with_system(active_follow_mouse.system())
                     .with_system(commit.system())
                     .with_system(update_hovered_board_pieces.system())
+                    .with_system(ui::ui.system())
                     .label("main"),
             )
             .add_system_set(
@@ -133,6 +146,7 @@ impl Plugin for PuzzlePlugin {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum GameState {
     Load,
+    Menu,
     Main,
 }
 
@@ -186,7 +200,7 @@ fn load_transition(
         == 0
     {
         // We are done loading! transition state.
-        state.set(GameState::Main).ok();
+        state.set(GameState::Menu).ok();
     }
 }
 
@@ -198,6 +212,7 @@ fn game_setup(
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
     mut bag: ResMut<Bag>,
+    mut timer: ResMut<PlacementTimer>,
 ) {
     let settings = settings.get(settings_handle.clone()).unwrap();
     let (size_x, size_y) = (settings.board_size.x, settings.board_size.y);
@@ -234,6 +249,9 @@ fn game_setup(
     // add a block to follow around the cursor or something
     let pattern = bag.next().unwrap();
     set_active_pattern_helper(&mut cmd, &active, patterns.get(pattern).unwrap(), cursor);
+
+    // reset the timer on game start
+    timer.reset();
 }
 
 #[derive(Default)]
