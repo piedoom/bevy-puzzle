@@ -1,9 +1,1 @@
-SettingsAsset(
-    style: Style(
-        outline: Rgba(red: 1, green: 1, blue: 1, alpha: 0.1),
-        line_width: 0.1,
-        margin: 0.1,
-    ),
-    board_size: Vec2(9,9),
-    camera_scale: 0.015,
-)
+(style:(outline:Rgba(red:1,green:1,blue:1,alpha:0.1),line_width:0.1,margin:0.1),board_size:(9,9),camera_scale:0.015,leaderboard:(leaders:[("rustacean",483)],max_length:10))

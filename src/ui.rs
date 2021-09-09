@@ -4,14 +4,15 @@ use bevy_egui::{
     EguiContext,
 };
 
-use crate::{ActiveEntity, Bag, GameState, Hold, Pattern, PlacementTimer, Score};
+use crate::{ActiveEntity, Bag, GameState, Hold, NextUp, Pattern, PlacementTimer, Score};
 
 pub(crate) fn ui(
     ctx: ResMut<EguiContext>,
     score: Res<Score>,
     place_timer: Res<PlacementTimer>,
     hold: Res<Hold>,
-    mut bag: ResMut<Bag>,
+    bag: ResMut<Bag>,
+    next_up: Res<NextUp>,
     patterns: Res<Assets<Pattern>>,
 ) {
     egui::SidePanel::right("panel")
@@ -20,11 +21,11 @@ pub(crate) fn ui(
             ui.vertical(|ui| {
                 ui.label(format!("Score: {}", score.to_string()));
 
-                let next_pattern = patterns.get(bag.peek()).unwrap();
-                ui.add(PatternWidget::new(Some(next_pattern)));
-
                 // hold
-                ui.add(PatternWidget::new(hold.get()).size(80f32));
+                ui.add(PatternWidget::new(hold.get()));
+
+                let next_pattern = patterns.get(next_up.clone()).unwrap();
+                ui.add(PatternWidget::new(Some(next_pattern)).size(80f32));
 
                 // timer thing
                 let (res, paint) = ui

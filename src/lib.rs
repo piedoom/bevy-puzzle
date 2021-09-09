@@ -1,16 +1,23 @@
 #![feature(duration_zero)]
 use std::{
-    collections::VecDeque, iter::Peekable, marker::PhantomData, path::PathBuf, time::Duration,
+    collections::{hash_map::DefaultHasher, VecDeque},
+    fs::File,
+    hash::{Hash, Hasher},
+    io::Write,
+    iter::Peekable,
+    marker::PhantomData,
+    path::PathBuf,
+    time::Duration,
 };
 
 use bevy::{
-    asset::{AssetLoader, BoxedFuture, LoadContext, LoadState, LoadedAsset},
+    asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadState, LoadedAsset},
     ecs::component::Component,
     input::keyboard::KeyboardInput,
     prelude::*,
     reflect::TypeUuid,
     render::camera::{Camera, OrthographicProjection},
-    utils::Instant,
+    utils::{AHasher, Instant},
 };
 use bevy_asset_ron::RonAssetPlugin;
 use rand::{
@@ -58,27 +65,16 @@ pub struct Bag {
 
 impl Bag {
     pub fn new(patterns: Vec<Handle<Pattern>>) -> Self {
-        Self {
+        let mut s = Self {
             patterns,
             queue: Default::default(),
-        }
-    }
-
-    pub fn peek(&mut self) -> Handle<Pattern> {
-        if self.queue.len() == 0 {
-            self.refresh()
-        }
-        self.queue.iter().peekable().peek().unwrap().clone().clone()
-    }
-
-    /// Adds more tiles
-    pub fn refresh(&mut self) {
-        self.patterns.shuffle(&mut thread_rng());
-        for pattern in &self.patterns {
-            self.queue.push_back(pattern.clone());
-        }
+        };
+        s.next();
+        s
     }
 }
+
+pub type NextUp = Handle<Pattern>;
 
 impl Iterator for Bag {
     type Item = Handle<Pattern>;
@@ -86,7 +82,10 @@ impl Iterator for Bag {
     fn next(&mut self) -> Option<Self::Item> {
         // add more pieces if we have no more
         if self.queue.len() == 0 {
-            self.refresh();
+            self.patterns.shuffle(&mut thread_rng());
+            for pattern in &self.patterns {
+                self.queue.push_back(pattern.clone());
+            }
         }
         self.queue.pop_front()
     }
@@ -103,6 +102,7 @@ impl Plugin for PuzzlePlugin {
             .init_resource::<Handle<SettingsAsset>>()
             .init_resource::<CursorPosition>()
             .init_resource::<Hold>()
+            .init_resource::<NextUp>()
             .add_asset::<Pattern>()
             .init_asset_loader::<PatternLoader>()
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
@@ -131,6 +131,7 @@ impl Plugin for PuzzlePlugin {
                 SystemSet::on_update(GameState::Main)
                     .with_system(scorer.system())
                     .with_system(scored_effect.system())
+                    .with_system(animate_active.system())
                     .after("main")
                     .before("styles"),
             )
@@ -144,7 +145,7 @@ impl Plugin for PuzzlePlugin {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum GameState {
+pub enum GameState {
     Load,
     Menu,
     Main,
@@ -211,32 +212,43 @@ fn game_setup(
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
+    board: Query<Entity, With<GameBoard>>,
+    cameras: Query<Entity, With<Camera>>,
     mut bag: ResMut<Bag>,
     mut timer: ResMut<PlacementTimer>,
+    mut next_up: ResMut<NextUp>,
 ) {
     let settings = settings.get(settings_handle.clone()).unwrap();
     let (size_x, size_y) = (settings.board_size.x, settings.board_size.y);
 
-    // create game grid
-    for x in 0..size_x as usize {
-        for y in 0..size_y as usize {
-            // add a square
-            cmd.spawn_bundle((
-                states::Empty,
-                Transform::from_xyz(x as f32, y as f32, 0f32),
-                GameBoard,
-                Tile,
-                selection::None,
-            ));
+    // Create the board if it doesn't already exist
+    if board.iter().count() == 0 {
+        // create game grid
+        for x in 0..size_x as usize {
+            for y in 0..size_y as usize {
+                // add a square
+                cmd.spawn_bundle((
+                    states::Empty,
+                    Transform::from_xyz(x as f32, y as f32, 0f32),
+                    GameBoard,
+                    Tile,
+                    selection::None,
+                ));
+            }
         }
     }
 
-    // Set up the camera to be centerd on the game board
-    // Calculate the overall size of the board, and divide to find the center point
-    let trans = Transform::from_xyz(size_x / 2f32, size_y / 2f32, 10.0);
-    let mut camera_bundle = OrthographicCameraBundle::new_2d();
-    camera_bundle.orthographic_projection.scale = settings.camera_scale;
-    cmd.spawn_bundle(camera_bundle).insert(trans);
+    // Create camera if none exists
+    if cameras.iter().count() == 0 {
+        let camera_entity = cmd.spawn().id();
+        // Calculate the overall size of the board, and divide to find the center point
+        let trans = Transform::from_xyz(size_x / 2f32, size_y / 2f32, 10.0);
+        let mut camera_bundle = OrthographicCameraBundle::new_2d();
+        camera_bundle.orthographic_projection.scale = settings.camera_scale;
+        cmd.entity(camera_entity)
+            .insert_bundle(camera_bundle)
+            .insert(trans);
+    };
 
     // Add pieces to the bag
     *bag = Bag::new(
@@ -247,8 +259,14 @@ fn game_setup(
     );
 
     // add a block to follow around the cursor or something
-    let pattern = bag.next().unwrap();
-    set_active_pattern_helper(&mut cmd, &active, patterns.get(pattern).unwrap(), cursor);
+    *next_up = bag.next().unwrap();
+    let entity = set_active_pattern_helper(
+        &mut cmd,
+        &active,
+        patterns.get(next_up.clone()).unwrap(),
+        cursor,
+    );
+    *next_up = bag.next().unwrap();
 
     // reset the timer on game start
     timer.reset();
@@ -257,15 +275,16 @@ fn game_setup(
 #[derive(Default)]
 pub struct PreloadingAssets(pub Vec<HandleUntyped>);
 
-#[derive(serde::Deserialize, TypeUuid)]
+#[derive(serde::Deserialize, serde::Serialize, TypeUuid)]
 #[uuid = "1df82c01-9c71-4fa8-adc4-78c5822268fb"]
 pub struct SettingsAsset {
     pub style: Style,
     pub board_size: Vec2,
     pub camera_scale: f32,
+    pub leaderboard: Leaderboard,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct Style {
     pub outline: Color,
     pub line_width: f32,
@@ -321,7 +340,59 @@ pub fn active_follow_mouse(
     });
 }
 
-pub type Score = u64;
+pub type Score = usize;
+/// An always sorted collection of highest scores
+
+#[derive(serde::Deserialize, serde::Serialize, Default)]
+pub struct Leaderboard {
+    leaders: Vec<(String, usize)>,
+    pub max_length: usize,
+}
+
+impl Leaderboard {
+    /// Add an entry to the leaderboard if it is better than the worst score already on the leaderboards
+    pub fn add(&mut self, name: &str, score: usize) -> bool {
+        // obtain a hash to see if anything changes
+        let mut before_hash = AHasher::default();
+        self.leaders.hash(&mut before_hash);
+        // push the entry and then truncate by our max length to get the new leaderboard
+        self.leaders.push((name.to_string(), score));
+        self.leaders.sort_by(|a, b| a.1.cmp(&b.1));
+        self.leaders.truncate(self.max_length);
+        // If the hash is not the same, it has been added!
+        let mut after_hash = AHasher::default();
+        self.leaders.hash(&mut after_hash);
+        before_hash.finish() != after_hash.finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn populated_leaderboard() -> Leaderboard {
+        Leaderboard {
+            leaders: vec![
+                ("Name1".into(), 300),
+                ("Name2".into(), 200),
+                ("Name3".into(), 100),
+            ],
+            max_length: 3,
+        }
+    }
+
+    #[test]
+    fn dont_add_bad_score_to_leaderboard() {
+        let mut leaderboard = populated_leaderboard();
+        let entry = ("Name4".to_string(), 50);
+        let added = leaderboard.add(&entry.0, entry.1);
+        assert_eq!(added, false);
+        assert!(!leaderboard.leaders.contains(&entry));
+    }
+
+    #[test]
+    fn add_new_to_leaderboard() {}
+}
 
 #[derive(Default, Debug, Clone, TypeUuid, serde::Deserialize)]
 #[uuid = "39cadc56-aa9c-4543-8640-a018b74b505b"]
@@ -523,6 +594,27 @@ pub fn update_hovered_board_pieces(
         .ok();
 }
 
+fn animate_active(
+    active: Query<&Children, With<ActiveEntity>>,
+    mut transforms: Query<&mut Transform>,
+    placement_timer: Res<PlacementTimer>,
+) {
+    active
+        .single()
+        .map(|p| {
+            p.iter().for_each(|e| {
+                transforms
+                    .get_mut(*e)
+                    .map(|mut t| {
+                        t.scale =
+                            Vec3::new(0.95, 0.95, 0.0).lerp(Vec3::ONE, placement_timer.normalized())
+                    })
+                    .ok();
+            })
+        })
+        .ok();
+}
+
 fn style_blocks(
     mut cmd: Commands,
     styles: Res<BlockResources>,
@@ -629,19 +721,33 @@ fn style(
 pub fn commit(
     mut cmd: Commands,
     mut timer: ResMut<PlacementTimer>,
-    invalid: Query<(), With<selection::Invalid>>,
-    hover: Query<Entity, (With<selection::Hover>, With<states::Empty>, With<GameBoard>)>,
     mouse: Res<Input<MouseButton>>,
-    active: Query<Entity, With<ActiveEntity>>,
     colors: Query<&Color>,
     children: Query<&Children>,
     patterns: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
+    settings_handle: Res<Handle<SettingsAsset>>,
+    mut settings_assets: ResMut<Assets<SettingsAsset>>,
+    tiles: QuerySet<(
+        // Board pieces
+        Query<Entity, With<GameBoard>>,
+        // Hovered empty game board pieces
+        Query<Entity, (With<selection::Hover>, With<states::Empty>, With<GameBoard>)>,
+        // Invalid (full) game board pieces
+        Query<Entity, With<selection::Invalid>>,
+        // Active entity
+        Query<Entity, With<ActiveEntity>>,
+    )>,
+    mut score: ResMut<Score>,
+    mut state: ResMut<State<GameState>>,
+    mut next_up: ResMut<NextUp>,
     mut bag: ResMut<Bag>,
 ) {
+    let (board, hover, invalid, active) = (tiles.q0(), tiles.q1(), tiles.q2(), tiles.q3());
     let timer_done = timer.done();
     let mouse_pressed = mouse.just_pressed(MouseButton::Left);
     if mouse_pressed || timer_done {
+        let mut lose = false;
         // first, ensure there are no invalid blocks
         if invalid.iter().count() == 0 {
             if let Some(active_entity) = active.iter().next() {
@@ -662,39 +768,59 @@ pub fn commit(
                             }
                         };
                     }
-                    commit_active_helper(&mut cmd, hover, color);
+                    hover.for_each(|e| {
+                        transition::<states::Empty, states::Full>(&mut cmd, e);
+                        transition::<selection::Hover, selection::None>(&mut cmd, e);
+                        cmd.entity(e).insert(color);
+                    });
                     set_active_pattern_helper(
                         &mut cmd,
                         &active,
-                        patterns.get(bag.next().unwrap()).unwrap(),
+                        patterns.get(next_up.clone()).unwrap(),
                         cursor,
                     );
+                    // progress the next up
+                    *next_up = bag.next().unwrap();
                     if mouse_pressed {
                         // reset the timer early if the mouse was pressed and we were successful
                         timer.reset();
+                    }
+                } else {
+                    // the tile was off the gameboard
+                    if timer_done {
+                        // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
+                        lose = true;
                     }
                 }
             }
         } else {
             if timer_done {
                 // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
-                todo!("you lose");
+                lose = true;
             }
         }
-    }
-}
 
-/// Commits all hovered pieces with no checks to invalid pieces
-fn commit_active_helper(
-    mut cmd: &mut Commands,
-    hover: Query<Entity, (With<selection::Hover>, With<states::Empty>, With<GameBoard>)>,
-    color: Color,
-) {
-    hover.for_each(|e| {
-        transition::<states::Empty, states::Full>(&mut cmd, e);
-        transition::<selection::Hover, selection::None>(&mut cmd, e);
-        cmd.entity(e).insert(color);
-    });
+        if lose {
+            // Set high score
+            let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
+            // If it changed...
+            if settings.leaderboard.add("rustacean", *score) {
+                // Save asset for leaderboard
+                if let Ok(text) = ron::to_string(settings) {
+                    let path = AssetPath::from("assets/settings.rfg");
+                    let mut file = File::create(path.path()).unwrap();
+                    file.write_all(text.as_bytes()).ok();
+                }
+            }
+            // Clean up
+            *score = 0;
+            board.for_each(|e| {
+                cmd.entity(e).despawn_recursive();
+            });
+            // For now, kick player back to the menu
+            state.set(GameState::Menu).ok();
+        }
+    }
 }
 
 /// Set the active pattern to the newly provided pattern
@@ -813,7 +939,6 @@ fn rotate_active(
 
 fn add_to_hold(
     mut cmd: Commands,
-    mut bag: ResMut<Bag>,
     mut hold: ResMut<Hold>,
     unswappable: Query<&Unswappable>,
     active: Query<Entity, With<ActiveEntity>>,
@@ -821,6 +946,7 @@ fn add_to_hold(
     keyboard: Res<Input<KeyCode>>,
     cursor_pos: Res<CursorPosition>,
     patterns: Res<Assets<Pattern>>,
+    next_up: Res<NextUp>,
     mut placement_timer: ResMut<PlacementTimer>,
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
@@ -829,7 +955,7 @@ fn add_to_hold(
         let active_entity = set_active_pattern_helper(
             &mut cmd,
             &active,
-            &new_pattern.unwrap_or(patterns.get(bag.next().unwrap()).unwrap().clone()),
+            &new_pattern.unwrap_or(patterns.get(next_up.clone()).unwrap().clone()),
             cursor_pos,
         );
         cmd.entity(active_entity).insert(Unswappable);
