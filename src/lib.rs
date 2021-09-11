@@ -104,6 +104,7 @@ impl Plugin for PuzzlePlugin {
             .init_resource::<Hold>()
             .init_resource::<NextUp>()
             .add_asset::<Pattern>()
+            .insert_resource(ClearColor(Color::hex("1B1920").unwrap()))
             .init_asset_loader::<PatternLoader>()
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
             .add_system_set(
@@ -282,6 +283,8 @@ pub struct SettingsAsset {
     pub board_size: Vec2,
     pub camera_scale: f32,
     pub leaderboard: Leaderboard,
+    /// The name of the active user to insert
+    pub active_name: String,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -357,7 +360,7 @@ impl Leaderboard {
         self.leaders.hash(&mut before_hash);
         // push the entry and then truncate by our max length to get the new leaderboard
         self.leaders.push((name.to_string(), score));
-        self.leaders.sort_by(|a, b| a.1.cmp(&b.1));
+        self.leaders.sort_by(|a, b| b.1.cmp(&a.1));
         self.leaders.truncate(self.max_length);
         // If the hash is not the same, it has been added!
         let mut after_hash = AHasher::default();
@@ -804,7 +807,14 @@ pub fn commit(
             // Set high score
             let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
             // If it changed...
-            if settings.leaderboard.add("rustacean", *score) {
+            let name = {
+                if settings.active_name.is_empty() {
+                    "rustacean"
+                } else {
+                    &settings.active_name
+                }
+            };
+            if settings.leaderboard.add(name, *score) {
                 // Save asset for leaderboard
                 if let Ok(text) = ron::to_string(settings) {
                     let path = AssetPath::from("assets/settings.rfg");

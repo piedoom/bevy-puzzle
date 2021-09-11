@@ -4,7 +4,9 @@ use bevy_egui::{
     EguiContext,
 };
 
-use crate::{ActiveEntity, Bag, GameState, Hold, NextUp, Pattern, PlacementTimer, Score};
+use crate::{
+    ActiveEntity, Bag, GameState, Hold, NextUp, Pattern, PlacementTimer, Score, SettingsAsset,
+};
 
 pub(crate) fn ui(
     ctx: ResMut<EguiContext>,
@@ -18,30 +20,48 @@ pub(crate) fn ui(
     egui::SidePanel::right("panel")
         .default_width(300f32)
         .show(ctx.ctx(), |ui| {
-            ui.vertical(|ui| {
-                ui.label(format!("Score: {}", score.to_string()));
+            ui.label(format!("Score: {}", score.to_string()));
 
-                // hold
-                ui.add(PatternWidget::new(hold.get()));
+            // hold
+            ui.add(PatternWidget::new(hold.get()));
 
-                let next_pattern = patterns.get(next_up.clone()).unwrap();
-                ui.add(PatternWidget::new(Some(next_pattern)).size(80f32));
+            let next_pattern = patterns.get(next_up.clone()).unwrap();
+            ui.add(PatternWidget::new(Some(next_pattern)).size(80f32));
 
-                // timer thing
-                let (res, paint) = ui
-                    .allocate_painter(ui.available_size_before_wrap_finite(), egui::Sense::click());
-                let mut rect = res.rect;
-                rect.set_width(rect.width() * place_timer.normalized());
-                paint.add(egui::Shape::rect_filled(rect, 0f32, Color32::GREEN))
-            });
+            // timer thing
+            let (res, paint) =
+                ui.allocate_painter(ui.available_size_before_wrap_finite(), egui::Sense::click());
+            let mut rect = res.rect;
+            rect.set_width(rect.width() * place_timer.normalized());
+            paint.add(egui::Shape::rect_filled(rect, 0f32, Color32::GREEN))
         });
 }
 
-pub(crate) fn menu_ui(ctx: ResMut<EguiContext>, mut state: ResMut<State<GameState>>) {
+pub(crate) fn menu_ui(
+    ctx: ResMut<EguiContext>,
+    mut state: ResMut<State<GameState>>,
+    settings_handle: Res<Handle<SettingsAsset>>,
+    mut settings_assets: ResMut<Assets<SettingsAsset>>,
+) {
     egui::CentralPanel::default().show(ctx.ctx(), |ui| {
-        if ui.button("Start").clicked() {
-            state.set(GameState::Main).ok();
-        }
+        let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
+        ui.centered_and_justified(|ui| {
+            ui.vertical(|ui| {
+                // high score
+                // loop over highest scores and display a text line for each
+                for score in &settings.leaderboard.leaders {
+                    let (name, score) = score;
+                    ui.label(format!("{}: {}", name, score));
+                }
+
+                // name input
+                ui.text_edit_singleline(&mut settings.active_name);
+            });
+            // start game button
+            if ui.button("Start").clicked() {
+                state.set(GameState::Main).ok();
+            }
+        });
     });
 }
 
