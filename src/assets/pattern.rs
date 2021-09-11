@@ -1,0 +1,58 @@
+use bevy::{asset::*, prelude::*, reflect::TypeUuid};
+
+#[derive(Default, Debug, Clone, TypeUuid, serde::Deserialize)]
+#[uuid = "39cadc56-aa9c-4543-8640-a018b74b505b"]
+pub struct Pattern {
+    pub color: Color,
+    pub blocks: Vec<Vec2>,
+}
+
+#[derive(Default)]
+pub struct PatternLoader;
+
+impl AssetLoader for PatternLoader {
+    fn load<'a>(
+        &'a self,
+        bytes: &'a [u8],
+        load_context: &'a mut LoadContext,
+    ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
+        Box::pin(async move {
+            let input = String::from_utf8(bytes.to_vec())?;
+            let asset = Pattern::from_emoji(input);
+            load_context.set_default_asset(LoadedAsset::new(asset));
+            Ok(())
+        })
+    }
+
+    fn extensions(&self) -> &[&str] {
+        &["block"]
+    }
+}
+
+impl Pattern {
+    pub fn from_emoji(input: impl ToString) -> Self {
+        // split at first newline
+        let input = input.to_string();
+        let (color, pattern) = input.split_once('\n').unwrap();
+        let color = Color::hex(color).unwrap();
+        let mut blocks = Vec::<Vec2>::default();
+        let mut cur = Vec2::ZERO;
+        pattern.to_string().chars().for_each(|c| {
+            match c {
+                '⬛' => {
+                    cur.x += 1.0;
+                }
+                '⬜' => {
+                    blocks.push(cur);
+                    cur.x += 1.0;
+                }
+                '\n' => {
+                    cur.x = 0f32;
+                    cur.y -= 1.0;
+                }
+                e => warn!("unrecognized char \"{}\" in pattern", e),
+            };
+        });
+        Self { color, blocks }
+    }
+}

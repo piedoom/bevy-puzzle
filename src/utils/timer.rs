@@ -2,9 +2,10 @@ use std::time::Duration;
 
 use bevy::utils::Instant;
 
-/// Instant describes when timer will go off
+/// A generic timer that can be used within a component or resource
 pub struct Timer {
     created: Instant,
+    /// Instant describes when timer will go off
     alarm: Instant,
 }
 
