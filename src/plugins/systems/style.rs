@@ -48,7 +48,7 @@ fn animate_active_system(
 
 fn style_blocks_system(
     mut cmd: Commands,
-    styles: Res<BlockResources>,
+    styles: Res<TileResources>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     full: Query<(Entity, Option<&Color>), Added<tile_states::Full>>,
     empty: Query<

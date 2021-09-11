@@ -1,8 +1,7 @@
 //! This is where various elements of the UI including widgets exist
 
+use crate::GameState;
 use bevy::prelude::*;
-
-use crate::states::GameState;
 
 /// Systems that need to run during the [`crate::GameState::Main`] state
 mod game;

@@ -6,8 +6,8 @@ use bevy_asset_ron::RonAssetPlugin;
 use crate::{
     assets::{PreloadingAssets, SettingsAsset},
     prelude::*,
-    resources::{BlockResource, BlockResources},
-    states::GameState,
+    resources::{TileResource, TileResources},
+    GameState,
 };
 
 pub struct AssetPlugin;
@@ -15,7 +15,7 @@ pub struct AssetPlugin;
 impl Plugin for AssetPlugin {
     fn build(&self, app: &mut bevy::prelude::AppBuilder) {
         app.init_resource::<PreloadingAssets>()
-            .init_resource::<BlockResources>()
+            .init_resource::<TileResources>()
             .init_resource::<Handle<SettingsAsset>>()
             .add_asset::<Pattern>()
             .init_asset_loader::<PatternLoader>()
@@ -54,7 +54,7 @@ fn load_assets_system(
     mut loading: ResMut<PreloadingAssets>,
     mut settings_handle: ResMut<Handle<SettingsAsset>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut style: ResMut<BlockResources>,
+    mut style: ResMut<TileResources>,
 ) {
     // load our settings file
     *settings_handle = assets.load("settings.rfg");
@@ -72,12 +72,12 @@ fn load_assets_system(
         (texture.clone(), material.clone())
     };
 
-    *style = BlockResources {
-        empty: BlockResource::new(load_tex("empty")),
-        full: BlockResource::new(load_tex("full")),
-        hover: BlockResource::new(load_tex("hover")),
-        invalid: BlockResource::new(load_tex("invalid")),
-        scored: BlockResource::new(load_tex("scored")),
+    *style = TileResources {
+        empty: TileResource::new(load_tex("empty")),
+        full: TileResource::new(load_tex("full")),
+        hover: TileResource::new(load_tex("hover")),
+        invalid: TileResource::new(load_tex("invalid")),
+        scored: TileResource::new(load_tex("scored")),
     };
 
     assets

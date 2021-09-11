@@ -1,22 +1,22 @@
 use bevy::prelude::*;
 
-/// Saves the handles of all textures we will need
+/// Saves the handles of all textures needed for styling tiles
 #[derive(Default, Clone)]
-pub struct BlockResources {
-    pub empty: BlockResource,
-    pub full: BlockResource,
-    pub hover: BlockResource,
-    pub invalid: BlockResource,
-    pub scored: BlockResource,
+pub struct TileResources {
+    pub empty: TileResource,
+    pub full: TileResource,
+    pub hover: TileResource,
+    pub invalid: TileResource,
+    pub scored: TileResource,
 }
 
 #[derive(Default, Clone)]
-pub struct BlockResource {
+pub struct TileResource {
     pub texture: Handle<Texture>,
     pub material: Handle<ColorMaterial>,
 }
 
-impl BlockResource {
+impl TileResource {
     pub fn new(tex_mat: (Handle<Texture>, Handle<ColorMaterial>)) -> Self {
         Self {
             texture: tex_mat.0.clone(),

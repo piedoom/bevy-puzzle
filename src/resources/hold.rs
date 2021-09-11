@@ -1,5 +1,6 @@
 use crate::assets::Pattern;
 
+/// The piece that is currently in hold and can be swapped out
 #[derive(Default)]
 pub struct Hold(Option<Pattern>);
 

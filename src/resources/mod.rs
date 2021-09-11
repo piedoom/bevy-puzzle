@@ -1,7 +1,7 @@
 mod bag;
-mod block;
 mod hold;
 mod input;
 mod leaderboard;
+mod tile;
 
-pub use {bag::*, block::*, hold::*, input::*, leaderboard::*};
+pub use {bag::*, hold::*, input::*, leaderboard::*, tile::*};

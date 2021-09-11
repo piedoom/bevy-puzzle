@@ -13,7 +13,6 @@ name = "pz"
 serde = "*"
 ron = "*"
 anyhow = "*"
-bevy_prototype_lyon = "0.3"
 bevy_asset_ron = "0.2"
 rand = "*"
 

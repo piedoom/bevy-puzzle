@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-pub(crate) trait TransformExt {
+pub trait TransformExt {
     /// Returns a two-dimentional rounded coordinates useful for comparing game pieces  
     fn board_position(&self) -> Vec2;
 }

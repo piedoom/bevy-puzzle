@@ -1,7 +1,6 @@
+use crate::prelude::*;
 use bevy::prelude::*;
 use bevy_egui::{egui::*, *};
-
-use crate::{assets::SettingsAsset, states::GameState};
 
 /// Resource that tells us if the game is paused or not
 pub type Paused = bool;

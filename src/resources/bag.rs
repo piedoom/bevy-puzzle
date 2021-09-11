@@ -5,7 +5,8 @@ use rand::{prelude::SliceRandom, thread_rng};
 
 use crate::assets::Pattern;
 
-/// A random distribution of all pieces is in the bag
+/// A random distribution of all game pieces. This is similar to the other 4-block game and helps with reducing bad luck losses.
+/// The bag is also a cool iterator that does a cool side effect lol watch out haha...
 #[derive(Default, Clone)]
 pub struct Bag {
     // All possible patterns that can be played
