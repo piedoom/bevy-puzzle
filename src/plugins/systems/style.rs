@@ -1,4 +1,4 @@
-use crate::prelude::{Timer, *};
+use crate::prelude::*;
 use bevy::prelude::*;
 
 use super::{helpers::style_with_texture, Label};
@@ -28,7 +28,7 @@ impl Plugin for StylePlugin {
 fn animate_active_system(
     active: Query<&Children, With<ActiveEntity>>,
     mut transforms: Query<&mut Transform>,
-    placement_timer: Res<PlacementTimer>,
+    placement_timer: Query<&PlacementTimer, With<ActiveEntity>>,
 ) {
     active
         .single()
@@ -37,8 +37,13 @@ fn animate_active_system(
                 transforms
                     .get_mut(*e)
                     .map(|mut t| {
-                        t.scale =
-                            Vec3::new(0.95, 0.95, 0.0).lerp(Vec3::ONE, placement_timer.normalized())
+                        t.scale = Vec3::new(0.95, 0.95, 0.0).lerp(
+                            Vec3::ONE,
+                            placement_timer
+                                .single()
+                                .map(|t| t.percent())
+                                .unwrap_or(0f32),
+                        )
                     })
                     .ok();
             })
@@ -154,14 +159,14 @@ fn style_blocks_system(
 
 pub(crate) fn scored_effect_system(
     mut cmd: Commands,
-    scored: Query<(Entity, &mut Transform, &Timer), With<tile_states::Scored>>,
+    time: Res<Time>,
+    scored: Query<(Entity, &mut Transform, &mut Timer), With<tile_states::Scored>>,
 ) {
-    scored.for_each_mut(|(e, mut t, timer)| {
+    scored.for_each_mut(|(e, mut t, mut timer)| {
+        timer.tick(time.delta());
         // shrink and delete when scale is too small
-        t.scale = t
-            .scale
-            .lerp(Vec3::new(0f32, 0f32, 2f32), timer.normalized());
-        if timer.done() {
+        t.scale = t.scale.lerp(Vec3::new(0f32, 0f32, 2f32), timer.percent());
+        if timer.finished() {
             cmd.entity(e).despawn_recursive();
         }
     });

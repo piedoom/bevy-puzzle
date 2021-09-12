@@ -10,7 +10,7 @@ use crate::ui::widgets::PatternWidget;
 pub(crate) fn ui_main_system(
     ctx: ResMut<EguiContext>,
     score: Res<Score>,
-    place_timer: Res<PlacementTimer>,
+    place_timer: Query<&PlacementTimer, With<ActiveEntity>>,
     hold: Res<Hold>,
     next_up: Res<NextUp>,
     patterns: Res<Assets<Pattern>>,
@@ -31,7 +31,13 @@ pub(crate) fn ui_main_system(
             let (res, paint) =
                 ui.allocate_painter(ui.available_size_before_wrap_finite(), Sense::click());
             let mut rect = res.rect;
-            rect.set_width(rect.width() * place_timer.normalized());
+
+            // get the timer on the active piece to see how much time is left
+            let width = place_timer
+                .single()
+                .map(|t| rect.width() * t.percent())
+                .unwrap_or(0f32);
+            rect.set_width(width);
             paint.add(Shape::rect_filled(rect, 0f32, Color32::GREEN))
         });
 }

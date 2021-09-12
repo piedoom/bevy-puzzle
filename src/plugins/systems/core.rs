@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::prelude::{Timer, *};
+use crate::prelude::*;
 use bevy::{prelude::*, render::camera::Camera};
 
 use super::{helpers::set_active_pattern_helper, Label};
@@ -12,7 +12,6 @@ impl Plugin for CorePuzzlePlugin {
         app.add_state(GameState::Load)
             .init_resource::<Score>()
             .init_resource::<ActiveEntity>()
-            .insert_resource(PlacementTimer::from(Duration::from_millis(3000)))
             .init_resource::<Bag>()
             .init_resource::<Hold>()
             .init_resource::<NextUp>()
@@ -20,6 +19,7 @@ impl Plugin for CorePuzzlePlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::Main)
                     .with_system(scorer_system.system())
+                    .with_system(placement_timer_tick_system.system())
                     .label(Label::Process)
                     .after(Label::Listen),
             );
@@ -81,7 +81,7 @@ fn scorer_system(
             GlobalTransform::from(transform.clone()),
             transform.clone(),
             tile_states::Scored,
-            Timer::from(Duration::from_millis(1000)),
+            Timer::new(Duration::from_millis(1000), false),
         ));
         *score += 1;
     }
@@ -97,7 +97,6 @@ fn setup_system(
     board: Query<Entity, With<GameBoard>>,
     cameras: Query<Entity, With<Camera>>,
     mut bag: ResMut<Bag>,
-    mut timer: ResMut<PlacementTimer>,
     mut next_up: ResMut<NextUp>,
 ) {
     let settings = settings.get(settings_handle.clone()).unwrap();
@@ -132,24 +131,33 @@ fn setup_system(
             .insert(trans);
     };
 
-    // Add pieces to the bag
-    *bag = Bag::new(
-        patterns
-            .iter()
-            .map(|(x, _)| patterns.get_handle(x))
-            .collect(),
-    );
+    // Add pieces to the bag if the bag has not yet been initialized
+    if bag.queue.len() == 0 {
+        *bag = Bag::new(
+            patterns
+                .iter()
+                .map(|(x, _)| patterns.get_handle(x))
+                .collect(),
+        );
+        *next_up = bag.next().unwrap();
+        set_active_pattern_helper(
+            &mut cmd,
+            &active,
+            patterns.get(next_up.clone()).unwrap(),
+            cursor,
+        );
+        *next_up = bag.next().unwrap();
+    }
+}
 
-    // add a block to follow around the cursor or something
-    *next_up = bag.next().unwrap();
-    set_active_pattern_helper(
-        &mut cmd,
-        &active,
-        patterns.get(next_up.clone()).unwrap(),
-        cursor,
-    );
-    *next_up = bag.next().unwrap();
-
-    // reset the timer on game start
-    timer.reset();
+fn placement_timer_tick_system(
+    time: Res<Time>,
+    mut active_timer: Query<&mut PlacementTimer, With<ActiveEntity>>,
+) {
+    active_timer
+        .single_mut()
+        .map(|mut t| {
+            t.tick(time.delta());
+        })
+        .ok();
 }

@@ -14,16 +14,18 @@ use super::{
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.init_resource::<CursorPosition>().add_system_set(
-            SystemSet::on_update(GameState::Main)
-                .with_system(get_cursor_position_system.system())
-                .with_system(rotate_active_system.system())
-                .with_system(add_to_hold_system.system())
-                .with_system(commit_active_system.system())
-                .with_system(update_hovered_system.system())
-                .with_system(active_piece_position_system.system())
-                .label(Label::Listen),
-        );
+        app.init_resource::<CursorPosition>()
+            .add_system(pause_system.system())
+            .add_system_set(
+                SystemSet::on_update(GameState::Main)
+                    .with_system(get_cursor_position_system.system())
+                    .with_system(rotate_active_system.system())
+                    .with_system(add_to_hold_system.system())
+                    .with_system(commit_active_system.system())
+                    .with_system(update_hovered_system.system())
+                    .with_system(active_piece_position_system.system())
+                    .label(Label::Listen),
+            );
     }
 }
 
@@ -74,7 +76,13 @@ fn rotate_active_system(
         };
         let rot = Quat::from_rotation_z(multiplier * 90f32.to_radians());
 
-        active.single_mut().map(|mut t| t.rotate(rot)).ok();
+        active
+            .single_mut()
+            .map(|mut transform| {
+                // rotate the overall piece
+                transform.rotate(rot);
+            })
+            .ok();
     }
 }
 
@@ -88,7 +96,6 @@ fn add_to_hold_system(
     cursor_pos: Res<CursorPosition>,
     patterns: Res<Assets<Pattern>>,
     next_up: Res<NextUp>,
-    mut placement_timer: ResMut<PlacementTimer>,
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
@@ -100,14 +107,12 @@ fn add_to_hold_system(
             cursor_pos,
         );
         cmd.entity(active_entity).insert(Unswappable);
-        // also reset the timer when swapping
-        placement_timer.reset();
     }
 }
 
 fn commit_active_system(
     mut cmd: Commands,
-    mut timer: ResMut<PlacementTimer>,
+    timer: Query<&PlacementTimer, With<ActiveEntity>>,
     mouse: Res<Input<MouseButton>>,
     colors: Query<&Color>,
     children: Query<&Children>,
@@ -138,88 +143,86 @@ fn commit_active_system(
     mut bag: ResMut<Bag>,
 ) {
     let (board, hover, invalid, active) = (tiles.q0(), tiles.q1(), tiles.q2(), tiles.q3());
-    let timer_done = timer.done();
-    let mouse_pressed = mouse.just_pressed(MouseButton::Left);
-    if mouse_pressed || timer_done {
-        let mut lose = false;
-        // first, ensure there are no invalid blocks
-        if invalid.iter().count() == 0 {
-            if let Some(active_entity) = active.iter().next() {
-                // also ensure that the number of hovered blocks matches the number of active
-                let active_blocks_count = children
-                    .get(active_entity)
-                    .map(|x| x.iter().count())
-                    .unwrap_or(0);
-                if hover.iter().count() == active_blocks_count {
-                    // get block color to commit to the game board
-                    let mut color = Color::WHITE;
-                    if let Some(entity) = active.iter().next() {
-                        if let Ok(children) = children.get(entity) {
-                            if let Some(child) = children.first() {
-                                if let Ok(c) = colors.get(*child) {
-                                    color = *c;
+    if let Ok(timer) = timer.single() {
+        let timer_done = timer.finished();
+        let mouse_pressed = mouse.just_pressed(MouseButton::Left);
+        if mouse_pressed || timer_done {
+            let mut lose = false;
+            // first, ensure there are no invalid blocks
+            if invalid.iter().count() == 0 {
+                if let Some(active_entity) = active.iter().next() {
+                    // also ensure that the number of hovered blocks matches the number of active
+                    let active_blocks_count = children
+                        .get(active_entity)
+                        .map(|x| x.iter().count())
+                        .unwrap_or(0);
+                    if hover.iter().count() == active_blocks_count {
+                        // get block color to commit to the game board
+                        let mut color = Color::WHITE;
+                        if let Some(entity) = active.iter().next() {
+                            if let Ok(children) = children.get(entity) {
+                                if let Some(child) = children.first() {
+                                    if let Ok(c) = colors.get(*child) {
+                                        color = *c;
+                                    }
                                 }
-                            }
-                        };
-                    }
-                    hover.for_each(|e| {
-                        transition::<tile_states::Empty, tile_states::Full>(&mut cmd, e);
-                        transition::<tile_styles::Hover, tile_styles::None>(&mut cmd, e);
-                        cmd.entity(e).insert(color);
-                    });
-                    set_active_pattern_helper(
-                        &mut cmd,
-                        &active,
-                        patterns.get(next_up.clone()).unwrap(),
-                        cursor,
-                    );
-                    // progress the next up
-                    *next_up = bag.next().unwrap();
-                    if mouse_pressed {
-                        // reset the timer early if the mouse was pressed and we were successful
-                        timer.reset();
-                    }
-                } else {
-                    // the tile was off the gameboard
-                    if timer_done {
-                        // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
-                        lose = true;
+                            };
+                        }
+                        hover.for_each(|e| {
+                            transition::<tile_states::Empty, tile_states::Full>(&mut cmd, e);
+                            transition::<tile_styles::Hover, tile_styles::None>(&mut cmd, e);
+                            cmd.entity(e).insert(color);
+                        });
+                        set_active_pattern_helper(
+                            &mut cmd,
+                            &active,
+                            patterns.get(next_up.clone()).unwrap(),
+                            cursor,
+                        );
+                        // progress the next up
+                        *next_up = bag.next().unwrap();
+                    } else {
+                        // the tile was off the gameboard
+                        if timer_done {
+                            // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
+                            lose = true;
+                        }
                     }
                 }
+            } else {
+                if timer_done {
+                    // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
+                    lose = true;
+                }
             }
-        } else {
-            if timer_done {
-                // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
-                lose = true;
-            }
-        }
 
-        if lose {
-            // Set high score
-            let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
-            // If it changed...
-            let name = {
-                if settings.active_name.is_empty() {
-                    "rustacean"
-                } else {
-                    &settings.active_name
+            if lose {
+                // Set high score
+                let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
+                // If it changed...
+                let name = {
+                    if settings.active_name.is_empty() {
+                        "rustacean"
+                    } else {
+                        &settings.active_name
+                    }
+                };
+                if settings.leaderboard.add(name, *score) {
+                    // Save asset for leaderboard
+                    if let Ok(text) = ron::to_string(settings) {
+                        let path = AssetPath::from("assets/settings.rfg");
+                        let mut file = File::create(path.path()).unwrap();
+                        file.write_all(text.as_bytes()).ok();
+                    }
                 }
-            };
-            if settings.leaderboard.add(name, *score) {
-                // Save asset for leaderboard
-                if let Ok(text) = ron::to_string(settings) {
-                    let path = AssetPath::from("assets/settings.rfg");
-                    let mut file = File::create(path.path()).unwrap();
-                    file.write_all(text.as_bytes()).ok();
-                }
+                // Clean up
+                *score = 0;
+                board.for_each(|e| {
+                    cmd.entity(e).despawn_recursive();
+                });
+                // For now, kick player back to the menu
+                state.set(GameState::Menu).ok();
             }
-            // Clean up
-            *score = 0;
-            board.for_each(|e| {
-                cmd.entity(e).despawn_recursive();
-            });
-            // For now, kick player back to the menu
-            state.set(GameState::Menu).ok();
         }
     }
 }
@@ -317,4 +320,22 @@ fn active_piece_position_system(
         transform.translation.x = cursor.global.x;
         transform.translation.y = cursor.global.y;
     });
+}
+
+fn pause_system(mut state: ResMut<State<GameState>>, keyboard: Res<Input<KeyCode>>) {
+    if keyboard.just_pressed(KeyCode::Escape) {
+        match state.current() {
+            GameState::Load => (), // do nothing while loading
+            GameState::Menu => {
+                // Checking to see if we pushed the menu state or if it is the first time.
+                // If we pushed it, we want to pop it. Otherwise, we ignore since its the first menu show.
+                if state.inactives().contains(&GameState::Main) {
+                    state.pop().ok();
+                }
+            }
+            GameState::Main => {
+                state.push(GameState::Menu).ok();
+            }
+        }
+    }
 }

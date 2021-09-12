@@ -1,4 +1,4 @@
-pub(crate) mod systems;
+mod systems;
 
 use bevy::{app::PluginGroupBuilder, prelude::PluginGroup};
 pub use systems::{

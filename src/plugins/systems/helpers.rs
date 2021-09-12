@@ -1,10 +1,12 @@
+use std::time::Duration;
+
 use bevy::{ecs::component::Component, prelude::*};
 
 use crate::prelude::*;
 
 /// Transition states in a fn as to avoid invalid states
 #[inline(always)]
-pub fn transition<F, T>(cmd: &mut Commands, entity: Entity)
+pub(crate) fn transition<F, T>(cmd: &mut Commands, entity: Entity)
 where
     F: Component,
     T: Component + Default,
@@ -12,8 +14,8 @@ where
     cmd.entity(entity).remove::<F>().insert(T::default());
 }
 
-/// actually builds entities from a block pattern. Returns the parent entity of the newly created block structure
-pub fn pattern_builder<T: Component + Default>(
+/// Actually builds entities from a block pattern. Returns the parent entity of the newly created block structure
+pub(crate) fn pattern_builder<T: Component + Default>(
     cmd: &mut Commands,
     pattern: &Pattern,
     transform: Transform,
@@ -41,7 +43,7 @@ pub fn pattern_builder<T: Component + Default>(
 }
 
 /// Assign a new material to a block via a [`Handle<Texture>`]
-pub fn style_with_texture(
+pub(crate) fn style_with_texture(
     cmd: &mut Commands,
     entity: Entity,
     texture: Handle<Texture>,
@@ -57,19 +59,25 @@ pub fn style_with_texture(
 }
 
 /// Set the active pattern to the newly provided pattern
-pub fn set_active_pattern_helper(
+pub(crate) fn set_active_pattern_helper(
     mut cmd: &mut Commands,
     active: &Query<Entity, With<ActiveEntity>>,
     pattern: &Pattern,
     cursor: Res<CursorPosition>,
 ) -> Entity {
-    active.for_each(|e| cmd.entity(e).despawn_recursive());
+    active
+        .single()
+        .map(|e| cmd.entity(e).despawn_recursive())
+        .ok();
 
     let entity = pattern_builder::<tile_states::Full>(
         &mut cmd,
         pattern,
         Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32),
     );
-    cmd.entity(entity).insert(ActiveEntity);
+    cmd.entity(entity).insert_bundle((
+        PlacementTimer::new(Duration::from_millis(3000), true),
+        ActiveEntity,
+    ));
     entity
 }
