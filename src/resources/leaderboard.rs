@@ -1,3 +1,5 @@
+//! The leaderboard is a serializable list of names and scores, with an arbitrary max length.
+
 use bevy::utils::AHasher;
 use std::hash::{Hash, Hasher};
 
@@ -9,7 +11,8 @@ pub type Leader = (String, usize);
 /// An always sorted collection of highest scores
 #[derive(serde::Deserialize, serde::Serialize, Default)]
 pub struct Leaderboard {
-    /// The name and score of a leaderboard score holder, sorted by largest to smallest score
+    /// The name and score of a leaderboard score holder, sorted by largest to smallest score.
+    /// Opt for using `Leaderboard::add(&self, ..)` as opposed to modifying this directly, as it will not sort.
     pub leaders: Vec<Leader>,
     /// The maximum number of entries that will be saved and displayed. If a score
     /// is sorted to past this `max_length`, it will be dropped
@@ -37,6 +40,7 @@ impl Leaderboard {
 mod tests {
     use super::*;
 
+    // Create a small populated leaderboard with a maximum size of 3
     fn populated_leaderboard() -> Leaderboard {
         Leaderboard {
             leaders: vec![
@@ -62,6 +66,6 @@ mod tests {
         let mut leaderboard = populated_leaderboard();
         let entry = ("Name4".to_string(), 150);
         leaderboard.add(&entry.0, entry.1);
-        assert_eq!(leaderboard.leaders[1], entry); // (1), entry);
+        assert_eq!(leaderboard.leaders[2], entry); // 300 (0), 200 (1), 150 (2), ..
     }
 }

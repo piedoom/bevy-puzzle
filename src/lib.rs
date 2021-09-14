@@ -2,6 +2,7 @@
 
 pub mod assets;
 pub mod components;
+mod events;
 mod plugins;
 pub mod resources;
 pub mod ui;
@@ -11,7 +12,8 @@ pub mod prelude {
     pub use super::GameState;
     use super::*;
     pub use assets::*;
-    pub use components::{tiles::*, *};
+    pub use components::*;
+    pub use events::*;
     pub use plugins::*;
     pub use resources::*;
     pub use utils::*;

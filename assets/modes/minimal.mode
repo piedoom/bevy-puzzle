@@ -1,0 +1,17 @@
+GameMode(
+    name: "minimal",
+    board_size: (9, 9),
+    can_rotate: false,
+    can_hold: false,
+    can_peek: false,
+    timer_rate: Constant(Duration(secs: 3,nanos: 0)),
+    patterns: [
+        "bracket left",
+        "bracket right",
+        "driver",
+        "pyramid",
+        "quad",
+        "snake left",
+        "snake right",
+    ],
+)

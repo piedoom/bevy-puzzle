@@ -29,9 +29,9 @@ impl TileResource {
 
 use bevy::core::Timer;
 
-use crate::assets::Pattern;
+use crate::{assets::Pattern, prelude::GameMode};
 
-/// The piece that is currently in hold and can be swapped out
+/// The piece that is currently in a holding state and can be swapped out for the active piece.
 #[derive(Default)]
 pub struct Hold(Option<Pattern>);
 
@@ -51,6 +51,7 @@ impl Hold {
     }
 }
 
+/// When this looping timer completes, the current [`crate::components::ActiveEntity`] will (attempt) to be placed on the gameboard
 pub type PlacementTimer = Timer;
 
 /// A random distribution of all game pieces. This is similar to the other 4-block game and helps with reducing bad luck losses.
@@ -58,7 +59,7 @@ pub type PlacementTimer = Timer;
 #[derive(Default, Clone)]
 pub struct Bag {
     // All possible patterns that can be played
-    patterns: Vec<Handle<Pattern>>,
+    pub(crate) patterns: Vec<Handle<Pattern>>,
     pub queue: VecDeque<Handle<Pattern>>,
 }
 
@@ -73,6 +74,8 @@ impl Bag {
     }
 }
 
+/// The next-up piece in the queue to become an [`crate::components::ActiveEntity`]. This pattern is shown in the
+/// user interface as well.
 pub type NextUp = Handle<Pattern>;
 
 impl Iterator for Bag {

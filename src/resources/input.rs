@@ -1,5 +1,6 @@
 use bevy::math::Vec2;
 
+/// A list of all whole-number (x, y) coordinates of the [`crate::components::ActiveEntity`]'s [`crate::prelude::Tile`]s
 pub type ActiveCoordinates = Vec<Vec2>;
 
 #[derive(Default)]

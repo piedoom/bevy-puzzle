@@ -1,9 +1,12 @@
+//! Systems needed to represent the bare-minimum of the game. Systems here
+//! set up the game board, score pieces, and control the [`PlacementTimer`] among other things.
+
 use std::time::Duration;
 
 use crate::prelude::*;
 use bevy::{prelude::*, render::camera::Camera};
 
-use super::{helpers::set_active_pattern_helper, Label};
+use super::Label;
 
 pub struct CorePuzzlePlugin;
 
@@ -11,10 +14,16 @@ impl Plugin for CorePuzzlePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(GameState::Load)
             .init_resource::<Score>()
+            .init_resource::<CurrentGameMode>()
             .init_resource::<ActiveEntity>()
             .init_resource::<Bag>()
             .init_resource::<Hold>()
             .init_resource::<NextUp>()
+            .add_event::<GameEvent>()
+            .add_system(process_events_system.system())
+            .add_system_set(
+                SystemSet::on_exit(GameState::Load).with_system(set_default_mode_system.system()),
+            )
             .add_system_set(SystemSet::on_enter(GameState::Main).with_system(setup_system.system()))
             .add_system_set(
                 SystemSet::on_update(GameState::Main)
@@ -29,9 +38,9 @@ impl Plugin for CorePuzzlePlugin {
 // if there is 5 full blocks in a full square, remove and score
 fn scorer_system(
     mut cmd: Commands,
+    mut score: ResMut<Score>,
     full_tiles: Query<(Entity, &Transform), With<tile_states::Full>>,
     transforms: Query<&Transform>,
-    mut score: ResMut<Score>,
 ) {
     let mut scoring_tiles = vec![];
     full_tiles.for_each(|(_, t)| {
@@ -87,20 +96,25 @@ fn scorer_system(
     }
 }
 
+/// Sets up everything needed to run the main game loop. It also checks to ensure nothing will be overwritten,
+/// so states can be pushed and popped as needed.
 fn setup_system(
     mut cmd: Commands,
-    active: Query<Entity, With<ActiveEntity>>,
-    cursor: Res<CursorPosition>,
+    mut events: EventWriter<GameEvent>,
+    mut bag: ResMut<Bag>,
+    mut next_up: ResMut<NextUp>,
+    active: Query<(), With<ActiveEntity>>,
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
     board: Query<Entity, With<GameBoard>>,
     cameras: Query<Entity, With<Camera>>,
-    mut bag: ResMut<Bag>,
-    mut next_up: ResMut<NextUp>,
+    current_mode: ResMut<CurrentGameMode>,
+    modes: ResMut<Assets<GameMode>>,
 ) {
     let settings = settings.get(settings_handle.clone()).unwrap();
-    let (size_x, size_y) = (settings.board_size.x, settings.board_size.y);
+    let mode = modes.get(current_mode.clone()).unwrap();
+    let (size_x, size_y) = (mode.board_size.0, mode.board_size.1);
 
     // Create the board if it doesn't already exist
     if board.iter().count() == 0 {
@@ -123,7 +137,7 @@ fn setup_system(
     if cameras.iter().count() == 0 {
         let camera_entity = cmd.spawn().id();
         // Calculate the overall size of the board, and divide to find the center point
-        let trans = Transform::from_xyz(size_x / 2f32, size_y / 2f32, 10.0);
+        let trans = Transform::from_xyz(size_x as f32 / 2f32, size_y as f32 / 2f32, 10.0);
         let mut camera_bundle = OrthographicCameraBundle::new_2d();
         camera_bundle.orthographic_projection.scale = settings.camera_scale;
         cmd.entity(camera_entity)
@@ -136,23 +150,30 @@ fn setup_system(
         *bag = Bag::new(
             patterns
                 .iter()
+                .filter(|(_, pattern)| mode.patterns.contains(&pattern.name))
                 .map(|(x, _)| patterns.get_handle(x))
                 .collect(),
         );
         *next_up = bag.next().unwrap();
-        set_active_pattern_helper(
-            &mut cmd,
-            &active,
-            patterns.get(next_up.clone()).unwrap(),
-            cursor,
-        );
+        events.send(GameEvent::SetActivePattern {
+            pattern: patterns.get(next_up.clone()).unwrap().clone(),
+            unswappable: false,
+        });
         *next_up = bag.next().unwrap();
+    }
+
+    // Create the active piece if it doesn't exist yet
+    if active.iter().count() == 0 {
+        events.send(GameEvent::SetActivePattern {
+            pattern: patterns.get(next_up.clone()).unwrap().clone(),
+            unswappable: false,
+        });
     }
 }
 
 fn placement_timer_tick_system(
-    time: Res<Time>,
     mut active_timer: Query<&mut PlacementTimer, With<ActiveEntity>>,
+    time: Res<Time>,
 ) {
     active_timer
         .single_mut()
@@ -160,4 +181,104 @@ fn placement_timer_tick_system(
             t.tick(time.delta());
         })
         .ok();
+}
+
+/// Trigger any other stuff that needs to be done after the loading stage
+fn set_default_mode_system(
+    mut current_mode: ResMut<CurrentGameMode>,
+    mut modes: ResMut<Assets<GameMode>>,
+    patterns: Res<Assets<Pattern>>,
+) {
+    // If the current mode handle is default, it means it hasn't been set yet. In that case,
+    // we attempt to assign it the first handle in our assets resource. If that also fails,
+    // we set the game mode to default.
+    if *current_mode == Handle::<GameMode>::default() {
+        // The current mode is unset. Find the asset titled "default" or load in the default asset
+        let user_default = modes
+            .iter()
+            .find(|(_, mode)| mode.name == GameMode::default_name())
+            .map(|(id, _)| modes.get_handle(id));
+
+        *current_mode =
+            user_default.unwrap_or_else(|| modes.add(GameMode::default_with_patterns(&*patterns)));
+    }
+}
+
+fn process_events_system(
+    mut cmd: Commands,
+    mut events: EventReader<GameEvent>,
+    mut current_mode: ResMut<CurrentGameMode>,
+    mut bag: ResMut<Bag>,
+    mut next: ResMut<NextUp>,
+    modes: Res<Assets<GameMode>>,
+    pattern_assets: Res<Assets<Pattern>>,
+    active: Query<Entity, With<ActiveEntity>>,
+    cursor: Res<CursorPosition>,
+) {
+    for event in events.iter() {
+        match event {
+            GameEvent::SetActivePattern {
+                pattern,
+                unswappable,
+            } => {
+                // Set the active pattern to the newly provided pattern
+                active
+                    .single()
+                    .map(|e| cmd.entity(e).despawn_recursive())
+                    .ok();
+
+                let transform = Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32);
+
+                // Create the new active entity
+                let entity = cmd
+                    .spawn_bundle((
+                        transform.clone(),
+                        GlobalTransform::from(transform.clone()),
+                        pattern.clone(),
+                        PlacementTimer::new(Duration::from_millis(3000), true),
+                        ActiveEntity,
+                    ))
+                    .with_children(|p| {
+                        for block in pattern.blocks.iter() {
+                            // TODO: adjust the 0.5 constant offset to allow for more natural (and dynamic) rotations
+                            // based off of block size. We likely will need to determine this when loading the asset
+                            let local_transform =
+                                Transform::from_xyz(block.x - 0.5, block.y + 0.5, 1f32);
+                            p.spawn_bundle((
+                                tile_states::Full,
+                                local_transform,
+                                GlobalTransform::from(local_transform),
+                                pattern.color.clone(),
+                                Tile,
+                            ));
+                        }
+                    })
+                    .id();
+                if *unswappable {
+                    cmd.entity(entity).insert(Unswappable);
+                }
+            }
+            GameEvent::SetGameMode(mode_handle) => {
+                // Set the active game mode
+                *current_mode = mode_handle.clone();
+                let mode = modes.get(mode_handle).unwrap();
+
+                // Reset the bag and its pieces
+                let patterns: Vec<Handle<Pattern>> = pattern_assets
+                    .iter()
+                    .filter_map(|(id, pattern)| {
+                        // Only include pieces specified in the mode
+                        if mode.patterns.contains(&pattern.name) {
+                            Some(pattern_assets.get_handle(id))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                *bag = Bag::new(patterns);
+                *next = bag.next().unwrap();
+            }
+        }
+    }
 }

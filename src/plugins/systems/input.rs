@@ -6,10 +6,7 @@ use bevy::{asset::AssetPath, prelude::*, render::camera::*};
 
 use crate::prelude::*;
 
-use super::{
-    helpers::{set_active_pattern_helper, transition},
-    Label,
-};
+use super::{helpers::transition, Label};
 
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
@@ -63,50 +60,51 @@ fn get_cursor_position_system(
 fn rotate_active_system(
     mut active: Query<&mut Transform, With<ActiveEntity>>,
     keyboard: Res<Input<KeyCode>>,
+    mode: Res<CurrentGameMode>,
+    modes: Res<Assets<GameMode>>,
 ) {
-    let right_pressed = keyboard.just_pressed(KeyCode::D);
-    let left_pressed = keyboard.just_pressed(KeyCode::A);
-    if right_pressed || left_pressed {
-        let multiplier = if right_pressed {
-            -1f32
-        } else if left_pressed {
-            1f32
-        } else {
-            0f32
-        };
-        let rot = Quat::from_rotation_z(multiplier * 90f32.to_radians());
+    let mode = modes.get(mode.clone()).unwrap();
+    if mode.can_rotate {
+        let right_pressed = keyboard.just_pressed(KeyCode::D);
+        let left_pressed = keyboard.just_pressed(KeyCode::A);
+        if right_pressed || left_pressed {
+            let multiplier = if right_pressed {
+                -1f32
+            } else if left_pressed {
+                1f32
+            } else {
+                0f32
+            };
+            let rot = Quat::from_rotation_z(multiplier * 90f32.to_radians());
 
-        active
-            .single_mut()
-            .map(|mut transform| {
-                // rotate the overall piece
-                transform.rotate(rot);
-            })
-            .ok();
+            active
+                .single_mut()
+                .map(|mut transform| {
+                    // rotate the overall piece
+                    transform.rotate(rot);
+                })
+                .ok();
+        }
     }
 }
 
 fn add_to_hold_system(
-    mut cmd: Commands,
     mut hold: ResMut<Hold>,
     unswappable: Query<&Unswappable>,
-    active: Query<Entity, With<ActiveEntity>>,
     active_pattern: Query<&Pattern, With<ActiveEntity>>,
     keyboard: Res<Input<KeyCode>>,
-    cursor_pos: Res<CursorPosition>,
     patterns: Res<Assets<Pattern>>,
     next_up: Res<NextUp>,
+    mut events: EventWriter<GameEvent>,
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
-        let new_pattern = hold.swap(active_pattern.single().unwrap().clone());
-        let active_entity = set_active_pattern_helper(
-            &mut cmd,
-            &active,
-            &new_pattern.unwrap_or(patterns.get(next_up.clone()).unwrap().clone()),
-            cursor_pos,
-        );
-        cmd.entity(active_entity).insert(Unswappable);
+        let pattern = hold.swap(active_pattern.single().unwrap().clone());
+        let pattern = pattern.unwrap_or(patterns.get(next_up.clone()).unwrap().clone());
+        events.send(GameEvent::SetActivePattern {
+            pattern,
+            unswappable: true,
+        });
     }
 }
 
@@ -117,7 +115,6 @@ fn commit_active_system(
     colors: Query<&Color>,
     children: Query<&Children>,
     patterns: Res<Assets<Pattern>>,
-    cursor: Res<CursorPosition>,
     settings_handle: Res<Handle<SettingsAsset>>,
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
     tiles: QuerySet<(
@@ -141,6 +138,7 @@ fn commit_active_system(
     mut state: ResMut<State<GameState>>,
     mut next_up: ResMut<NextUp>,
     mut bag: ResMut<Bag>,
+    mut events: EventWriter<GameEvent>,
 ) {
     let (board, hover, invalid, active) = (tiles.q0(), tiles.q1(), tiles.q2(), tiles.q3());
     if let Ok(timer) = timer.single() {
@@ -173,12 +171,10 @@ fn commit_active_system(
                             transition::<tile_styles::Hover, tile_styles::None>(&mut cmd, e);
                             cmd.entity(e).insert(color);
                         });
-                        set_active_pattern_helper(
-                            &mut cmd,
-                            &active,
-                            patterns.get(next_up.clone()).unwrap(),
-                            cursor,
-                        );
+                        events.send(GameEvent::SetActivePattern {
+                            pattern: patterns.get(next_up.clone()).unwrap().clone(),
+                            unswappable: true,
+                        });
                         // progress the next up
                         *next_up = bag.next().unwrap();
                     } else {

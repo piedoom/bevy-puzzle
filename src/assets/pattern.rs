@@ -3,6 +3,7 @@ use bevy::{asset::*, prelude::*, reflect::TypeUuid};
 #[derive(Default, Debug, Clone, TypeUuid, serde::Deserialize)]
 #[uuid = "39cadc56-aa9c-4543-8640-a018b74b505b"]
 pub struct Pattern {
+    pub name: String,
     pub color: Color,
     pub blocks: Vec<Vec2>,
 }
@@ -33,7 +34,8 @@ impl Pattern {
     pub fn from_emoji(input: impl ToString) -> Self {
         // split at first newline
         let input = input.to_string();
-        let (color, pattern) = input.split_once('\n').unwrap();
+        let (name, rest) = input.split_once('\n').unwrap();
+        let (color, pattern) = rest.split_once('\n').unwrap();
         let color = Color::hex(color).unwrap();
         let mut blocks = Vec::<Vec2>::default();
         let mut cur = Vec2::ZERO;
@@ -53,6 +55,10 @@ impl Pattern {
                 e => warn!("unrecognized char \"{}\" in pattern", e),
             };
         });
-        Self { color, blocks }
+        Self {
+            name: name.into(),
+            color,
+            blocks,
+        }
     }
 }

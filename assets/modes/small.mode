@@ -1,0 +1,28 @@
+GameMode(
+    name: "long",
+    board_size: (5, 9),
+    can_rotate: true,
+    can_hold: true,
+    can_peek: true,
+    timer_rate: Progressive (
+        start_rate: Duration ( 
+            secs: 3,
+            nanos: 0,
+        ),
+        end_rate: Duration (
+            secs: 1,
+            nanos: 0,
+        ),
+        steps: 64,
+        delay: 8,
+    ),
+    patterns: [
+        "bracket left",
+        "bracket right",
+        "driver",
+        "pyramid",
+        "quad",
+        "snake left",
+        "snake right",
+    ],
+)

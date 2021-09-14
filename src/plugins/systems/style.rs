@@ -26,8 +26,8 @@ impl Plugin for StylePlugin {
 }
 
 fn animate_active_system(
-    active: Query<&Children, With<ActiveEntity>>,
     mut transforms: Query<&mut Transform>,
+    active: Query<&Children, With<ActiveEntity>>,
     placement_timer: Query<&PlacementTimer, With<ActiveEntity>>,
 ) {
     active
@@ -53,8 +53,9 @@ fn animate_active_system(
 
 fn style_blocks_system(
     mut cmd: Commands,
-    styles: Res<TileResources>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut transforms: Query<&mut Transform>,
+    styles: Res<TileResources>,
     full: Query<(Entity, Option<&Color>), Added<tile_states::Full>>,
     empty: Query<
         Entity,
@@ -97,7 +98,6 @@ fn style_blocks_system(
             With<GameBoard>,
         ),
     >,
-    mut transforms: Query<&mut Transform>,
 ) {
     full.iter()
         .chain(uninvalidated.iter())

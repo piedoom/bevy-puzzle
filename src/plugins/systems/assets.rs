@@ -18,7 +18,9 @@ impl Plugin for AssetPlugin {
             .init_resource::<TileResources>()
             .init_resource::<Handle<SettingsAsset>>()
             .add_asset::<Pattern>()
+            .add_asset::<GameMode>()
             .init_asset_loader::<PatternLoader>()
+            .add_plugin(RonAssetPlugin::<GameMode>::new(&["mode"]))
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
             .add_system_set(
                 // Load setup
@@ -33,9 +35,9 @@ impl Plugin for AssetPlugin {
 
 /// Track any loading assets and transition to the next game state when ready
 fn assets_loaded_transition_system(
+    mut state: ResMut<State<GameState>>,
     loading: Res<PreloadingAssets>,
     assets: Res<AssetServer>,
-    mut state: ResMut<State<GameState>>,
 ) {
     if loading
         .0
@@ -50,11 +52,11 @@ fn assets_loaded_transition_system(
 }
 
 fn load_assets_system(
-    assets: Res<AssetServer>,
     mut loading: ResMut<PreloadingAssets>,
     mut settings_handle: ResMut<Handle<SettingsAsset>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut style: ResMut<TileResources>,
+    assets: Res<AssetServer>,
 ) {
     // load our settings file
     *settings_handle = assets.load("settings.rfg");
@@ -79,6 +81,10 @@ fn load_assets_system(
         invalid: TileResource::new(load_tex("invalid")),
         scored: TileResource::new(load_tex("scored")),
     };
+
+    // load game modes
+    let mode_handles = &mut assets.load_folder("modes").unwrap();
+    loading.0.append(mode_handles);
 
     assets
         .watch_for_changes()
