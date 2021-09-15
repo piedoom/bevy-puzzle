@@ -13,7 +13,7 @@ GameMode(
             secs: 1,
             nanos: 0,
         ),
-        steps: 64,
+        steps: 36,
         delay: 8,
     ),
     patterns: [

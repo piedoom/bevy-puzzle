@@ -35,12 +35,14 @@ pub(crate) fn reset_game(
     active: &mut Query<Entity, With<ActiveEntity>>,
     next: &mut ResMut<NextUp>,
     bag: &mut ResMut<Bag>,
+    step: &mut ResMut<Step>,
     board: &Query<Entity, With<GameBoard>>,
 ) {
     // Clean up
     *score = 0;
     **next = Handle::<Pattern>::default();
     **bag = Bag::default();
+    step.reset();
     active
         .single_mut()
         .map(|entity| cmd.entity(entity).despawn_recursive())

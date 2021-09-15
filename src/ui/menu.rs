@@ -65,6 +65,7 @@ pub(crate) fn ui_pause_menu_system(
     mut active: Query<Entity, With<ActiveEntity>>,
     mut next: ResMut<NextUp>,
     mut bag: ResMut<Bag>,
+    mut step: ResMut<Step>,
     board: Query<Entity, With<GameBoard>>,
     ctx: ResMut<EguiContext>,
 ) {
@@ -79,6 +80,7 @@ pub(crate) fn ui_pause_menu_system(
                     &mut active,
                     &mut next,
                     &mut bag,
+                    &mut step,
                     &board,
                 );
                 state.replace(GameState::Menu).ok();

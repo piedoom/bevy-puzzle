@@ -1,3 +1,5 @@
+#![feature(float_interpolation)]
+
 pub mod assets;
 pub mod components;
 mod events;

@@ -59,7 +59,7 @@ pub enum TimerRate {
     Endless {
         start_rate: Duration,
         end_rate: Duration,
-        delta: usize,
+        delta: Duration,
         delay: usize,
     },
 }

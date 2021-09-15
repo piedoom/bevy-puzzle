@@ -4,7 +4,7 @@ GameMode(
     can_rotate: false,
     can_hold: false,
     can_peek: false,
-    timer_rate: Constant(Duration(secs: 3,nanos: 0)),
+    timer_rate: Constant(Duration(secs: 2,nanos: 0)),
     patterns: [
         "bracket left",
         "bracket right",

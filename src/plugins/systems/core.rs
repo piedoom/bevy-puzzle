@@ -107,6 +107,7 @@ fn setup_system(
     mut score: ResMut<Score>,
     mut active: Query<Entity, With<ActiveEntity>>,
     mut next: ResMut<NextUp>,
+    mut step: ResMut<Step>,
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
@@ -126,6 +127,7 @@ fn setup_system(
         &mut active,
         &mut next,
         &mut bag,
+        &mut step,
         &board,
     );
 
@@ -244,13 +246,17 @@ fn process_events_system(
 
                 let transform = Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32);
 
+                // Calculate the amount of time we should have
+                let mode = modes.get(current_mode.clone()).unwrap();
+                let timer = step.create_timer(mode);
+
                 // Create the new active entity
                 let entity = cmd
                     .spawn_bundle((
                         transform.clone(),
                         GlobalTransform::from(transform.clone()),
                         pattern.clone(),
-                        PlacementTimer::new(Duration::from_millis(3000), false),
+                        timer,
                         ActiveEntity,
                     ))
                     .with_children(|p| {
@@ -354,6 +360,7 @@ fn process_events_system(
                     &mut active,
                     &mut next,
                     &mut bag,
+                    &mut step,
                     &board,
                 );
                 state.replace(GameState::Menu).ok();

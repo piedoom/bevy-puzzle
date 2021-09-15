@@ -1,3 +1,5 @@
+use crate::prelude::*;
+
 mod input;
 mod leaderboard;
 pub mod mode;
@@ -20,5 +22,47 @@ impl Step {
 
     pub fn current(&self) -> usize {
         self.0
+    }
+
+    pub fn reset(&mut self) {
+        self.0 = 0;
+    }
+
+    /// Create a timer appropriate for this step of the game, depending on the gamemode
+    pub fn create_timer(&self, mode: &GameMode) -> PlacementTimer {
+        // calculate the duration of our timer based on our current step and our gamemode settings
+        match mode.timer_rate {
+            TimerRate::Constant(duration) => PlacementTimer::new(duration, false),
+            TimerRate::Progressive {
+                start_rate,
+                end_rate,
+                steps,
+                delay,
+            } => {
+                // map step to range of values
+                let percent = if self.0 <= delay {
+                    0f32
+                } else {
+                    ((self.0 - delay) as f32 / steps as f32).clamp(0f32, 1f32)
+                };
+                PlacementTimer::from_seconds(
+                    percent.lerp(start_rate.as_secs_f32(), end_rate.as_secs_f32()),
+                    false,
+                )
+            }
+            TimerRate::Endless {
+                start_rate,
+                end_rate,
+                delta,
+                delay,
+            } => {
+                let reduced_rate = delta * (self.0 - delay).clamp(0, usize::MAX) as u32;
+                let mut new_time = start_rate - reduced_rate;
+                if new_time < end_rate {
+                    new_time = end_rate
+                }
+                PlacementTimer::new(new_time, false)
+            }
+        }
     }
 }
