@@ -31,16 +31,21 @@ pub(crate) fn style_with_texture(
 /// Destroy the game board and re-initialize all game state to default
 pub(crate) fn reset_game(
     cmd: &mut Commands,
-    state: &mut State<GameState>,
     score: &mut Score,
-    timer: &mut Query<&mut PlacementTimer, With<ActiveEntity>>,
+    active: &mut Query<Entity, With<ActiveEntity>>,
+    next: &mut ResMut<NextUp>,
+    bag: &mut ResMut<Bag>,
     board: &Query<Entity, With<GameBoard>>,
 ) {
     // Clean up
     *score = 0;
-    timer.single_mut().map(|mut t| t.reset()).ok();
+    **next = Handle::<Pattern>::default();
+    **bag = Bag::default();
+    active
+        .single_mut()
+        .map(|entity| cmd.entity(entity).despawn_recursive())
+        .ok();
     board.for_each(|e| {
         cmd.entity(e).despawn_recursive();
     });
-    state.replace(GameState::Menu).ok();
 }

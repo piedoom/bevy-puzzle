@@ -16,6 +16,7 @@ impl Plugin for CorePuzzlePlugin {
             .init_resource::<Score>()
             .init_resource::<CurrentGameMode>()
             .init_resource::<ActiveEntity>()
+            .init_resource::<Step>()
             .init_resource::<Bag>()
             .init_resource::<Hold>()
             .init_resource::<NextUp>()
@@ -102,34 +103,43 @@ fn setup_system(
     mut cmd: Commands,
     mut events: EventWriter<GameEvent>,
     mut bag: ResMut<Bag>,
-    mut next_up: ResMut<NextUp>,
-    active: Query<(), With<ActiveEntity>>,
+    mut hold: ResMut<Hold>,
+    mut score: ResMut<Score>,
+    mut active: Query<Entity, With<ActiveEntity>>,
+    mut next: ResMut<NextUp>,
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
-    board: Query<Entity, With<GameBoard>>,
-    cameras: Query<Entity, With<Camera>>,
     current_mode: ResMut<CurrentGameMode>,
     modes: ResMut<Assets<GameMode>>,
+    queries: QuerySet<(Query<Entity, With<GameBoard>>, Query<Entity, With<Camera>>)>,
 ) {
+    let (board, cameras) = (queries.q0(), queries.q1());
     let settings = settings.get(settings_handle.clone()).unwrap();
     let mode = modes.get(current_mode.clone()).unwrap();
     let (size_x, size_y) = (mode.board_size.0, mode.board_size.1);
 
-    // Create the board if it doesn't already exist
-    if board.iter().count() == 0 {
-        // create game grid
-        for x in 0..size_x as usize {
-            for y in 0..size_y as usize {
-                // add a square
-                cmd.spawn_bundle((
-                    tile_states::Empty,
-                    Transform::from_xyz(x as f32, y as f32, 0f32),
-                    GameBoard,
-                    Tile,
-                    tile_styles::None,
-                ));
-            }
+    // reset everything for good measure
+    reset_game(
+        &mut cmd,
+        &mut score,
+        &mut active,
+        &mut next,
+        &mut bag,
+        &board,
+    );
+
+    // create game grid
+    for x in 0..size_x as usize {
+        for y in 0..size_y as usize {
+            // add a square
+            cmd.spawn_bundle((
+                tile_states::Empty,
+                Transform::from_xyz(x as f32, y as f32, 0f32),
+                GameBoard,
+                Tile,
+                tile_styles::None,
+            ));
         }
     }
 
@@ -145,30 +155,22 @@ fn setup_system(
             .insert(trans);
     };
 
-    // Add pieces to the bag if the bag has not yet been initialized
-    if bag.queue.len() == 0 {
-        *bag = Bag::new(
-            patterns
-                .iter()
-                .filter(|(_, pattern)| mode.patterns.contains(&pattern.name))
-                .map(|(x, _)| patterns.get_handle(x))
-                .collect(),
-        );
-        *next_up = bag.next().unwrap();
-        events.send(GameEvent::SetActivePattern {
-            pattern: patterns.get(next_up.clone()).unwrap().clone(),
-            unswappable: false,
-        });
-        *next_up = bag.next().unwrap();
-    }
+    *bag = Bag::new(
+        patterns
+            .iter()
+            .filter(|(_, pattern)| mode.patterns.contains(&pattern.name))
+            .map(|(x, _)| patterns.get_handle(x))
+            .collect(),
+    );
+    *next = bag.next().unwrap();
+    events.send(GameEvent::SetActivePattern {
+        pattern: patterns.get(next.clone()).unwrap().clone(),
+        unswappable: false,
+    });
+    *next = bag.next().unwrap();
 
-    // Create the active piece if it doesn't exist yet
-    if active.iter().count() == 0 {
-        events.send(GameEvent::SetActivePattern {
-            pattern: patterns.get(next_up.clone()).unwrap().clone(),
-            unswappable: false,
-        });
-    }
+    // remove any piece from the hold
+    hold.clear();
 }
 
 fn placement_timer_tick_system(
@@ -180,17 +182,10 @@ fn placement_timer_tick_system(
         .single_mut()
         .map(|mut t| {
             t.tick(time.delta());
-        })
-        .ok();
-
-    // If the timer is finished, commit the pieces
-    active_timer
-        .single_mut()
-        .map(|t| {
             if t.finished() {
+                // Commit the piece
                 events.send(GameEvent::CommitActive {
                     loss_on_failure: true,
-                    set_active_pattern: true,
                 });
             }
         })
@@ -231,14 +226,19 @@ fn process_events_system(
     mut timer: Query<&mut PlacementTimer, With<ActiveEntity>>,
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
     mut state: ResMut<State<GameState>>,
+    mut step: ResMut<Step>,
+    mut active: Query<Entity, With<ActiveEntity>>,
     settings_handle: Res<Handle<SettingsAsset>>,
-    hover: Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
-    board: Query<Entity, With<GameBoard>>,
+    tiles: QuerySet<(
+        Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
+        Query<Entity, With<GameBoard>>,
+        Query<(Entity, &Pattern), With<ActiveEntity>>,
+    )>,
     modes: Res<Assets<GameMode>>,
     pattern_assets: Res<Assets<Pattern>>,
-    active: Query<(Entity, &Pattern), With<ActiveEntity>>,
     cursor: Res<CursorPosition>,
 ) {
+    let (hover, board, active_pattern) = (tiles.q0(), tiles.q1(), tiles.q2());
     let mut send_events = vec![];
     for event in events.get_reader().iter(&events) {
         match event {
@@ -247,7 +247,7 @@ fn process_events_system(
                 unswappable,
             } => {
                 // Set the active pattern to the newly provided pattern
-                active
+                active_pattern
                     .single()
                     .map(|(e, _)| cmd.entity(e).despawn_recursive())
                     .ok();
@@ -304,12 +304,9 @@ fn process_events_system(
                 *bag = Bag::new(patterns);
                 *next = bag.next().unwrap();
             }
-            GameEvent::CommitActive {
-                loss_on_failure,
-                set_active_pattern,
-            } => {
+            GameEvent::CommitActive { loss_on_failure } => {
                 // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
-                let (actives, color) = active
+                let (actives, color) = active_pattern
                     .single()
                     .map(|(_, pattern)| (pattern.blocks.len(), pattern.color))
                     .unwrap_or((0, Color::WHITE));
@@ -321,18 +318,22 @@ fn process_events_system(
                         cmd.entity(e).insert(color);
                     });
 
-                    // Advance the pieces
-                    *next = bag.next().unwrap();
-
-                    // Reset timer
-                    timer.single_mut().map(|mut t| t.reset()).ok();
-
-                    // Set active to our next up piece if desired
-                    if *set_active_pattern {
+                    // This check is needed in case the event is processed after a change that resets our next piece
+                    if let Some(pattern) = pattern_assets.get(next.clone()) {
+                        // Set active to our next up piece
                         send_events.push(GameEvent::SetActivePattern {
-                            pattern: pattern_assets.get(next.clone()).unwrap().clone(),
-                            unswappable: true,
+                            pattern: pattern.clone(),
+                            unswappable: false,
                         });
+
+                        // Advance the step counter
+                        step.next();
+
+                        // Advance the pieces
+                        *next = bag.next().unwrap();
+
+                        // Reset timer
+                        timer.single_mut().map(|mut t| t.reset()).ok();
                     }
                 }
                 // If the event is set to lose on failure to place, send a loss event
@@ -359,7 +360,15 @@ fn process_events_system(
                         file.write_all(text.as_bytes()).ok();
                     }
                 }
-                reset_game(&mut cmd, &mut state, &mut score, &mut timer, &board);
+                reset_game(
+                    &mut cmd,
+                    &mut score,
+                    &mut active,
+                    &mut next,
+                    &mut bag,
+                    &board,
+                );
+                state.replace(GameState::Menu).ok();
             }
         }
     }

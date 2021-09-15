@@ -41,6 +41,10 @@ impl Hold {
         self.0 = Some(pattern);
     }
 
+    pub fn clear(&mut self) {
+        self.0 = None;
+    }
+
     pub fn swap(&mut self, pattern: Pattern) -> Option<Pattern> {
         let ret = self.get().cloned();
         self.set(pattern);

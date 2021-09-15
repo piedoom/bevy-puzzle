@@ -111,7 +111,6 @@ fn click_commit_system(mut events: EventWriter<GameEvent>, input: Res<Input<Mous
     if input.just_pressed(MouseButton::Left) {
         events.send(GameEvent::CommitActive {
             loss_on_failure: false,
-            set_active_pattern: true,
         });
     }
 }
