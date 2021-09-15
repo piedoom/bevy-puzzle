@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-use super::{helpers::style_with_texture, Label};
+use super::Label;
 
 pub struct StylePlugin;
 

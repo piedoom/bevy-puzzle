@@ -1,12 +1,9 @@
 //! Systems and other data structures related to obtaining user input and modifying the game in some way
-
-use std::{fs::File, io::Write};
-
-use bevy::{asset::AssetPath, prelude::*, render::camera::*};
+use bevy::{prelude::*, render::camera::*};
 
 use crate::prelude::*;
 
-use super::{helpers::transition, Label};
+use super::Label;
 
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
@@ -18,7 +15,8 @@ impl Plugin for InputPlugin {
                     .with_system(get_cursor_position_system.system())
                     .with_system(rotate_active_system.system())
                     .with_system(add_to_hold_system.system())
-                    .with_system(commit_active_system.system())
+                    .with_system(click_commit_system.system())
+                    //.with_system(commit_active_system.system())
                     .with_system(update_hovered_system.system())
                     .with_system(active_piece_position_system.system())
                     .label(Label::Listen),
@@ -108,114 +106,13 @@ fn add_to_hold_system(
     }
 }
 
-fn commit_active_system(
-    mut cmd: Commands,
-    mut settings_assets: ResMut<Assets<SettingsAsset>>,
-    mut state: ResMut<State<GameState>>,
-    mut next_up: ResMut<NextUp>,
-    mut bag: ResMut<Bag>,
-    mut events: EventWriter<GameEvent>,
-    timer: Query<&PlacementTimer, With<ActiveEntity>>,
-    mouse: Res<Input<MouseButton>>,
-    colors: Query<&Color>,
-    children: Query<&Children>,
-    patterns: Res<Assets<Pattern>>,
-    settings_handle: Res<Handle<SettingsAsset>>,
-
-    tiles: QuerySet<(
-        // Board pieces
-        Query<Entity, With<GameBoard>>,
-        // Hovered empty game board pieces
-        Query<
-            Entity,
-            (
-                With<tile_styles::Hover>,
-                With<tile_states::Empty>,
-                With<GameBoard>,
-            ),
-        >,
-        // Invalid (full) game board pieces
-        Query<Entity, With<tile_styles::Invalid>>,
-        // Active entity
-        Query<Entity, With<ActiveEntity>>,
-    )>,
-    score: ResMut<Score>,
-) {
-    let (board, hover, invalid, active) = (tiles.q0(), tiles.q1(), tiles.q2(), tiles.q3());
-    if let Ok(timer) = timer.single() {
-        let timer_done = timer.finished();
-        let mouse_pressed = mouse.just_pressed(MouseButton::Left);
-        if mouse_pressed || timer_done {
-            let mut lose = false;
-            // first, ensure there are no invalid blocks
-            if invalid.iter().count() == 0 {
-                if let Some(active_entity) = active.iter().next() {
-                    // also ensure that the number of hovered blocks matches the number of active
-                    let active_blocks_count = children
-                        .get(active_entity)
-                        .map(|x| x.iter().count())
-                        .unwrap_or(0);
-                    if hover.iter().count() == active_blocks_count {
-                        // get block color to commit to the game board
-                        let mut color = Color::WHITE;
-                        if let Some(entity) = active.iter().next() {
-                            if let Ok(children) = children.get(entity) {
-                                if let Some(child) = children.first() {
-                                    if let Ok(c) = colors.get(*child) {
-                                        color = *c;
-                                    }
-                                }
-                            };
-                        }
-                        hover.for_each(|e| {
-                            transition::<tile_states::Empty, tile_states::Full>(&mut cmd, e);
-                            transition::<tile_styles::Hover, tile_styles::None>(&mut cmd, e);
-                            cmd.entity(e).insert(color);
-                        });
-                        events.send(GameEvent::SetActivePattern {
-                            pattern: patterns.get(next_up.clone()).unwrap().clone(),
-                            unswappable: true,
-                        });
-                        // progress the next up
-                        *next_up = bag.next().unwrap();
-                    } else {
-                        // the tile was off the gameboard
-                        if timer_done {
-                            // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
-                            lose = true;
-                        }
-                    }
-                }
-            } else {
-                if timer_done {
-                    // if the timer is done and there are invalid blocks, we fuckin lose LOL cringe...
-                    lose = true;
-                }
-            }
-
-            if lose {
-                // Set high score
-                let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
-                // If it changed...
-                let name = {
-                    if settings.active_name.is_empty() {
-                        "rustacean"
-                    } else {
-                        &settings.active_name
-                    }
-                };
-                if settings.leaderboard.add(name, *score) {
-                    // Save asset for leaderboard
-                    if let Ok(text) = ron::to_string(settings) {
-                        let path = AssetPath::from("assets/settings.rfg");
-                        let mut file = File::create(path.path()).unwrap();
-                        file.write_all(text.as_bytes()).ok();
-                    }
-                }
-                events.send(GameEvent::Reset);
-                state.replace(GameState::Menu).ok();
-            }
-        }
+/// Commit a piece on click. Failure should not end in a loss.
+fn click_commit_system(mut events: EventWriter<GameEvent>, input: Res<Input<MouseButton>>) {
+    if input.just_pressed(MouseButton::Left) {
+        events.send(GameEvent::CommitActive {
+            loss_on_failure: false,
+            set_active_pattern: true,
+        });
     }
 }
 

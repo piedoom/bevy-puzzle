@@ -59,8 +59,11 @@ pub(crate) fn ui_menu_system(
 }
 
 pub(crate) fn ui_pause_menu_system(
+    mut cmd: Commands,
     mut state: ResMut<State<GameState>>,
-    mut events: EventWriter<GameEvent>,
+    mut score: ResMut<Score>,
+    mut timer: Query<&mut PlacementTimer, With<ActiveEntity>>,
+    board: Query<Entity, With<GameBoard>>,
     ctx: ResMut<EguiContext>,
 ) {
     egui::Window::new("Paused")
@@ -68,7 +71,7 @@ pub(crate) fn ui_pause_menu_system(
         .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx.ctx(), |ui| {
             if ui.button("Exit").clicked() {
-                events.send(GameEvent::Reset);
+                reset_game(&mut cmd, &mut state, &mut score, &mut timer, &board);
                 state.replace(GameState::Menu).ok();
             }
             if ui.button("Resume").clicked() {

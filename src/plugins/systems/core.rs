@@ -1,10 +1,10 @@
 //! Systems needed to represent the bare-minimum of the game. Systems here
 //! set up the game board, score pieces, and control the [`PlacementTimer`] among other things.
 
-use std::time::Duration;
+use std::{fs::File, io::Write, time::Duration};
 
 use crate::prelude::*;
-use bevy::{prelude::*, render::camera::Camera};
+use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera};
 
 use super::Label;
 
@@ -173,12 +173,26 @@ fn setup_system(
 
 fn placement_timer_tick_system(
     mut active_timer: Query<&mut PlacementTimer, With<ActiveEntity>>,
+    mut events: EventWriter<GameEvent>,
     time: Res<Time>,
 ) {
     active_timer
         .single_mut()
         .map(|mut t| {
             t.tick(time.delta());
+        })
+        .ok();
+
+    // If the timer is finished, commit the pieces
+    active_timer
+        .single_mut()
+        .map(|t| {
+            if t.finished() {
+                events.send(GameEvent::CommitActive {
+                    loss_on_failure: true,
+                    set_active_pattern: true,
+                });
+            }
         })
         .ok();
 }
@@ -209,18 +223,24 @@ fn set_default_mode_system(
 
 fn process_events_system(
     mut cmd: Commands,
-    mut events: EventReader<GameEvent>,
+    mut events: ResMut<Events<GameEvent>>,
     mut current_mode: ResMut<CurrentGameMode>,
     mut bag: ResMut<Bag>,
     mut next: ResMut<NextUp>,
     mut score: ResMut<Score>,
+    mut timer: Query<&mut PlacementTimer, With<ActiveEntity>>,
+    mut settings_assets: ResMut<Assets<SettingsAsset>>,
+    mut state: ResMut<State<GameState>>,
+    settings_handle: Res<Handle<SettingsAsset>>,
+    hover: Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
     board: Query<Entity, With<GameBoard>>,
     modes: Res<Assets<GameMode>>,
     pattern_assets: Res<Assets<Pattern>>,
-    active: Query<Entity, With<ActiveEntity>>,
+    active: Query<(Entity, &Pattern), With<ActiveEntity>>,
     cursor: Res<CursorPosition>,
 ) {
-    for event in events.iter() {
+    let mut send_events = vec![];
+    for event in events.get_reader().iter(&events) {
         match event {
             GameEvent::SetActivePattern {
                 pattern,
@@ -229,7 +249,7 @@ fn process_events_system(
                 // Set the active pattern to the newly provided pattern
                 active
                     .single()
-                    .map(|e| cmd.entity(e).despawn_recursive())
+                    .map(|(e, _)| cmd.entity(e).despawn_recursive())
                     .ok();
 
                 let transform = Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32);
@@ -240,7 +260,7 @@ fn process_events_system(
                         transform.clone(),
                         GlobalTransform::from(transform.clone()),
                         pattern.clone(),
-                        PlacementTimer::new(Duration::from_millis(3000), true),
+                        PlacementTimer::new(Duration::from_millis(3000), false),
                         ActiveEntity,
                     ))
                     .with_children(|p| {
@@ -284,15 +304,66 @@ fn process_events_system(
                 *bag = Bag::new(patterns);
                 *next = bag.next().unwrap();
             }
-            GameEvent::Reset => {
-                // Clean up
-                *score = 0;
-                board.for_each(|e| {
-                    cmd.entity(e).despawn_recursive();
-                });
+            GameEvent::CommitActive {
+                loss_on_failure,
+                set_active_pattern,
+            } => {
+                // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
+                let (actives, color) = active
+                    .single()
+                    .map(|(_, pattern)| (pattern.blocks.len(), pattern.color))
+                    .unwrap_or((0, Color::WHITE));
+                if hover.iter().count() == actives {
+                    // everything is good, commit!
+                    hover.for_each(|e| {
+                        transition::<tile_states::Empty, tile_states::Full>(&mut cmd, e);
+                        transition::<tile_styles::Hover, tile_styles::None>(&mut cmd, e);
+                        cmd.entity(e).insert(color);
+                    });
+
+                    // Advance the pieces
+                    *next = bag.next().unwrap();
+
+                    // Reset timer
+                    timer.single_mut().map(|mut t| t.reset()).ok();
+
+                    // Set active to our next up piece if desired
+                    if *set_active_pattern {
+                        send_events.push(GameEvent::SetActivePattern {
+                            pattern: pattern_assets.get(next.clone()).unwrap().clone(),
+                            unswappable: true,
+                        });
+                    }
+                }
+                // If the event is set to lose on failure to place, send a loss event
+                else if *loss_on_failure {
+                    send_events.push(GameEvent::Loss);
+                }
             }
-            GameEvent::CommitActive(loss_on_fail) => todo!(),
-            GameEvent::Loss => {}
+            GameEvent::Loss => {
+                // Set high score
+                let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
+                // If it changed...
+                let name = {
+                    if settings.active_name.is_empty() {
+                        "rustacean"
+                    } else {
+                        &settings.active_name
+                    }
+                };
+                if settings.leaderboard.add(name, *score) {
+                    // Save asset for leaderboard
+                    if let Ok(text) = ron::to_string(settings) {
+                        let path = AssetPath::from("assets/settings.rfg");
+                        let mut file = File::create(path.path()).unwrap();
+                        file.write_all(text.as_bytes()).ok();
+                    }
+                }
+                reset_game(&mut cmd, &mut state, &mut score, &mut timer, &board);
+            }
         }
+    }
+    for event in send_events {
+        events.send(event);
     }
 }

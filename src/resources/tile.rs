@@ -1,3 +1,4 @@
+use crate::assets::Pattern;
 use bevy::prelude::*;
 use rand::{prelude::SliceRandom, thread_rng};
 use std::collections::VecDeque;
@@ -27,10 +28,6 @@ impl TileResource {
     }
 }
 
-use bevy::core::Timer;
-
-use crate::{assets::Pattern, prelude::GameMode};
-
 /// The piece that is currently in a holding state and can be swapped out for the active piece.
 #[derive(Default)]
 pub struct Hold(Option<Pattern>);
@@ -50,9 +47,6 @@ impl Hold {
         ret
     }
 }
-
-/// When this looping timer completes, the current [`crate::components::ActiveEntity`] will (attempt) to be placed on the gameboard
-pub type PlacementTimer = Timer;
 
 /// A random distribution of all game pieces. This is similar to the other 4-block game and helps with reducing bad luck losses.
 /// The bag is also a cool iterator that does a cool side effect lol watch out haha...
