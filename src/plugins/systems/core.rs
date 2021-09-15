@@ -185,8 +185,9 @@ fn placement_timer_tick_system(
 
 /// Trigger any other stuff that needs to be done after the loading stage
 fn set_default_mode_system(
-    mut current_mode: ResMut<CurrentGameMode>,
     mut modes: ResMut<Assets<GameMode>>,
+    mut events: EventWriter<GameEvent>,
+    current_mode: ResMut<CurrentGameMode>,
     patterns: Res<Assets<Pattern>>,
 ) {
     // If the current mode handle is default, it means it hasn't been set yet. In that case,
@@ -199,8 +200,10 @@ fn set_default_mode_system(
             .find(|(_, mode)| mode.name == GameMode::default_name())
             .map(|(id, _)| modes.get_handle(id));
 
-        *current_mode =
+        let mode =
             user_default.unwrap_or_else(|| modes.add(GameMode::default_with_patterns(&*patterns)));
+
+        events.send(GameEvent::SetGameMode(mode));
     }
 }
 
@@ -210,6 +213,8 @@ fn process_events_system(
     mut current_mode: ResMut<CurrentGameMode>,
     mut bag: ResMut<Bag>,
     mut next: ResMut<NextUp>,
+    mut score: ResMut<Score>,
+    board: Query<Entity, With<GameBoard>>,
     modes: Res<Assets<GameMode>>,
     pattern_assets: Res<Assets<Pattern>>,
     active: Query<Entity, With<ActiveEntity>>,
@@ -279,6 +284,15 @@ fn process_events_system(
                 *bag = Bag::new(patterns);
                 *next = bag.next().unwrap();
             }
+            GameEvent::Reset => {
+                // Clean up
+                *score = 0;
+                board.for_each(|e| {
+                    cmd.entity(e).despawn_recursive();
+                });
+            }
+            GameEvent::CommitActive(loss_on_fail) => todo!(),
+            GameEvent::Loss => {}
         }
     }
 }

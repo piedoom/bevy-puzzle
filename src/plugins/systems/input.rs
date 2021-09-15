@@ -110,13 +110,18 @@ fn add_to_hold_system(
 
 fn commit_active_system(
     mut cmd: Commands,
+    mut settings_assets: ResMut<Assets<SettingsAsset>>,
+    mut state: ResMut<State<GameState>>,
+    mut next_up: ResMut<NextUp>,
+    mut bag: ResMut<Bag>,
+    mut events: EventWriter<GameEvent>,
     timer: Query<&PlacementTimer, With<ActiveEntity>>,
     mouse: Res<Input<MouseButton>>,
     colors: Query<&Color>,
     children: Query<&Children>,
     patterns: Res<Assets<Pattern>>,
     settings_handle: Res<Handle<SettingsAsset>>,
-    mut settings_assets: ResMut<Assets<SettingsAsset>>,
+
     tiles: QuerySet<(
         // Board pieces
         Query<Entity, With<GameBoard>>,
@@ -134,11 +139,7 @@ fn commit_active_system(
         // Active entity
         Query<Entity, With<ActiveEntity>>,
     )>,
-    mut score: ResMut<Score>,
-    mut state: ResMut<State<GameState>>,
-    mut next_up: ResMut<NextUp>,
-    mut bag: ResMut<Bag>,
-    mut events: EventWriter<GameEvent>,
+    score: ResMut<Score>,
 ) {
     let (board, hover, invalid, active) = (tiles.q0(), tiles.q1(), tiles.q2(), tiles.q3());
     if let Ok(timer) = timer.single() {
@@ -211,13 +212,8 @@ fn commit_active_system(
                         file.write_all(text.as_bytes()).ok();
                     }
                 }
-                // Clean up
-                *score = 0;
-                board.for_each(|e| {
-                    cmd.entity(e).despawn_recursive();
-                });
-                // For now, kick player back to the menu
-                state.set(GameState::Menu).ok();
+                events.send(GameEvent::Reset);
+                state.replace(GameState::Menu).ok();
             }
         }
     }
@@ -321,17 +317,9 @@ fn active_piece_position_system(
 fn pause_system(mut state: ResMut<State<GameState>>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.just_pressed(KeyCode::Escape) {
         match state.current() {
-            GameState::Load => (), // do nothing while loading
-            GameState::Menu => {
-                // Checking to see if we pushed the menu state or if it is the first time.
-                // If we pushed it, we want to pop it. Otherwise, we ignore since its the first menu show.
-                if state.inactives().contains(&GameState::Main) {
-                    state.pop().ok();
-                }
-            }
-            GameState::Main => {
-                state.push(GameState::Menu).ok();
-            }
-        }
+            GameState::Main => state.push(GameState::Pause).ok(),
+            GameState::Pause => state.pop().ok(),
+            _ => None, // do nothing otherwise
+        };
     }
 }

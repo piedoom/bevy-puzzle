@@ -26,6 +26,11 @@ impl Plugin for UiPlugin {
                 SystemSet::on_update(GameState::Main)
                     .with_system(ui_main_system.system())
                     .label("main"),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::Pause)
+                    .with_system(ui_pause_menu_system.system())
+                    .label("pause"),
             );
     }
 }

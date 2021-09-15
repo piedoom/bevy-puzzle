@@ -1,5 +1,3 @@
-#![feature(duration_zero)]
-
 pub mod assets;
 pub mod components;
 mod events;
@@ -24,4 +22,5 @@ pub enum GameState {
     Load,
     Menu,
     Main,
+    Pause,
 }

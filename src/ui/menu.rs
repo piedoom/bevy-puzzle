@@ -30,10 +30,10 @@ pub(crate) fn ui_menu_system(
             });
 
             // get current mode
-            let mode = &modes.get(current_mode.clone()).unwrap();
+            let mode = &modes.get(current_mode.clone());
             ui.vertical(|ui| {
                 egui::ComboBox::from_label("Game mode")
-                    .selected_text(&mode.name)
+                    .selected_text(&mode.map(|x| &x.name).unwrap_or(&"loading".to_string()))
                     .show_ui(ui, |ui| {
                         for (id, mode) in modes.iter() {
                             if ui
@@ -56,4 +56,23 @@ pub(crate) fn ui_menu_system(
             }
         });
     });
+}
+
+pub(crate) fn ui_pause_menu_system(
+    mut state: ResMut<State<GameState>>,
+    mut events: EventWriter<GameEvent>,
+    ctx: ResMut<EguiContext>,
+) {
+    egui::Window::new("Paused")
+        .collapsible(false)
+        .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .show(ctx.ctx(), |ui| {
+            if ui.button("Exit").clicked() {
+                events.send(GameEvent::Reset);
+                state.replace(GameState::Menu).ok();
+            }
+            if ui.button("Resume").clicked() {
+                state.pop().ok();
+            }
+        });
 }
