@@ -32,8 +32,9 @@ pub(crate) fn ui_main_system(
 
             // Create a widget for our next-up pattern, if we are allowed to view it
             if mode.can_peek {
-                let next_pattern = patterns.get(next_up.clone()).unwrap();
-                ui.add(PatternWidget::new(Some(next_pattern)).size(80f32));
+                if let Some(next_pattern) = patterns.get(next_up.clone()) {
+                    ui.add(PatternWidget::new(Some(next_pattern)).size(80f32));
+                }
             }
 
             // Visualize the piece placement timer
