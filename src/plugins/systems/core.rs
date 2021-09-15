@@ -182,7 +182,7 @@ fn placement_timer_tick_system(
         .single_mut()
         .map(|mut t| {
             t.tick(time.delta());
-            if t.finished() {
+            if t.just_finished() {
                 // Commit the piece
                 events.send(GameEvent::CommitActive {
                     loss_on_failure: true,
@@ -196,24 +196,18 @@ fn placement_timer_tick_system(
 fn set_default_mode_system(
     mut modes: ResMut<Assets<GameMode>>,
     mut events: EventWriter<GameEvent>,
-    current_mode: ResMut<CurrentGameMode>,
     patterns: Res<Assets<Pattern>>,
 ) {
-    // If the current mode handle is default, it means it hasn't been set yet. In that case,
-    // we attempt to assign it the first handle in our assets resource. If that also fails,
-    // we set the game mode to default.
-    if *current_mode == Handle::<GameMode>::default() {
-        // The current mode is unset. Find the asset titled "default" or load in the default asset
-        let user_default = modes
-            .iter()
-            .find(|(_, mode)| mode.name == GameMode::default_name())
-            .map(|(id, _)| modes.get_handle(id));
+    // The current mode is unset. Find the asset titled "default" or load in the default asset
+    let user_default = modes
+        .iter()
+        .find(|(_, mode)| mode.name == GameMode::default_name())
+        .map(|(id, _)| modes.get_handle(id));
 
-        let mode =
-            user_default.unwrap_or_else(|| modes.add(GameMode::default_with_patterns(&*patterns)));
+    let mode =
+        user_default.unwrap_or_else(|| modes.add(GameMode::default_with_patterns(&*patterns)));
 
-        events.send(GameEvent::SetGameMode(mode));
-    }
+    events.send(GameEvent::SetGameMode(mode));
 }
 
 fn process_events_system(
@@ -223,7 +217,6 @@ fn process_events_system(
     mut bag: ResMut<Bag>,
     mut next: ResMut<NextUp>,
     mut score: ResMut<Score>,
-    mut timer: Query<&mut PlacementTimer, With<ActiveEntity>>,
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
     mut state: ResMut<State<GameState>>,
     mut step: ResMut<Step>,
@@ -240,17 +233,14 @@ fn process_events_system(
 ) {
     let (hover, board, active_pattern) = (tiles.q0(), tiles.q1(), tiles.q2());
     let mut send_events = vec![];
-    for event in events.get_reader().iter(&events) {
+    for event in events.drain() {
         match event {
             GameEvent::SetActivePattern {
                 pattern,
                 unswappable,
             } => {
                 // Set the active pattern to the newly provided pattern
-                active_pattern
-                    .single()
-                    .map(|(e, _)| cmd.entity(e).despawn_recursive())
-                    .ok();
+                active_pattern.for_each(|(e, _)| cmd.entity(e).despawn_recursive());
 
                 let transform = Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32);
 
@@ -279,7 +269,7 @@ fn process_events_system(
                         }
                     })
                     .id();
-                if *unswappable {
+                if unswappable {
                     cmd.entity(entity).insert(Unswappable);
                 }
             }
@@ -310,6 +300,7 @@ fn process_events_system(
                     .single()
                     .map(|(_, pattern)| (pattern.blocks.len(), pattern.color))
                     .unwrap_or((0, Color::WHITE));
+
                 if hover.iter().count() == actives {
                     // everything is good, commit!
                     hover.for_each(|e| {
@@ -331,13 +322,10 @@ fn process_events_system(
 
                         // Advance the pieces
                         *next = bag.next().unwrap();
-
-                        // Reset timer
-                        timer.single_mut().map(|mut t| t.reset()).ok();
                     }
                 }
                 // If the event is set to lose on failure to place, send a loss event
-                else if *loss_on_failure {
+                else if loss_on_failure {
                     send_events.push(GameEvent::Loss);
                 }
             }

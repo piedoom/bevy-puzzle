@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::prelude::*;
 
 pub enum GameEvent {
-    /// Sets the active pattern.
+    /// Adds an active pattern. Ensure the existing active pattern is despawned before calling this.
     /// If `true`, the [`Unswappable`] component is added as well.
     SetActivePattern {
         pattern: Pattern,
