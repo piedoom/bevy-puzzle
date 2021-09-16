@@ -25,4 +25,5 @@ pub enum GameState {
     Menu,
     Main,
     Pause,
+    Edit,
 }

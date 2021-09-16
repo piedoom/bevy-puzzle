@@ -1,5 +1,6 @@
 pub(crate) mod assets;
 pub(crate) mod core;
+pub(crate) mod edit;
 pub(crate) mod input;
 pub(crate) mod style;
 use bevy::ecs::schedule::SystemLabel;

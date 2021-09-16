@@ -44,7 +44,7 @@ impl<'a> Widget for PatternWidget<'a> {
         let grid_divisions = 4f32;
         // split the available widget space into n number of blocks where the n number is equal to the largest side
         let unit_size = rect.width() / grid_divisions;
-        ui.group(|ui| {
+        ui.vertical(|ui| {
             // create a grid hehe
             for x in 0..grid_divisions as usize {
                 for y in 0..grid_divisions as usize {
@@ -58,21 +58,18 @@ impl<'a> Widget for PatternWidget<'a> {
                     // create an empty grid
                     ui.painter().add(Shape::Rect {
                         rect: square_rect,
-                        corner_radius: 1f32,
+                        corner_radius: 0f32,
                         fill: Color32::TRANSPARENT,
-                        stroke: Stroke::new(
-                            2f32,
-                            Color32::from_rgba_unmultiplied(255, 255, 255, 80),
-                        ),
+                        stroke: Stroke::new(2f32, Color32::from_rgb(46, 45, 91)),
                     });
                     if let Some(pattern) = self.pattern {
                         // highlight if correct coords
                         if pattern.blocks.contains(&Vec2::new(x as f32, -(y as f32))) {
                             ui.painter().add(Shape::Rect {
                                 rect: square_rect,
-                                corner_radius: 1f32,
+                                corner_radius: 0f32,
                                 fill: self.color,
-                                stroke: Stroke::none(),
+                                stroke: Stroke::new(2f32, self.color),
                             });
                         }
                     }

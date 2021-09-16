@@ -134,14 +134,33 @@ fn setup_system(
     // create game grid
     for x in 0..size_x as usize {
         for y in 0..size_y as usize {
+            let transform = Transform::from_xyz(x as f32, y as f32, 0f32);
+
             // add a square
-            cmd.spawn_bundle((
-                tile_states::Empty,
-                Transform::from_xyz(x as f32, y as f32, 0f32),
-                GameBoard,
-                Tile,
-                tile_styles::None,
-            ));
+            let tile = cmd
+                .spawn_bundle((
+                    tile_states::Empty,
+                    transform,
+                    GameBoard,
+                    Tile,
+                    tile_styles::None,
+                ))
+                .id();
+
+            // Add extent if at certain position
+            if x + 1 == size_x {
+                if y == 0 {
+                    cmd.entity(tile).insert(BoardBottomRightExtent);
+                } else if y + 1 == size_y {
+                    cmd.entity(tile).insert(BoardTopRightExtent);
+                }
+            } else if x == 0 {
+                if y == 0 {
+                    cmd.entity(tile).insert(BoardBottomLeftExtent);
+                } else if y + 1 == size_y {
+                    cmd.entity(tile).insert(BoardTopLeftExtent);
+                }
+            }
         }
     }
 
