@@ -2,10 +2,9 @@ use crate::prelude::*;
 
 mod input;
 mod leaderboard;
-pub mod mode;
 mod tile;
 
-pub use {input::*, leaderboard::*, mode::*, tile::*};
+pub use {input::*, leaderboard::*, tile::*};
 
 #[derive(Default)]
 /// Counts the number of piece placements in the game

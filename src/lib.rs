@@ -1,4 +1,7 @@
 #![feature(float_interpolation)]
+#![feature(derive_default_enum)]
+
+use bevy::prelude::*;
 
 pub mod assets;
 pub mod components;
@@ -19,11 +22,52 @@ pub mod prelude {
     pub use utils::*;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+use prelude::*;
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PreloadingAssets(pub Vec<HandleUntyped>);
+
+#[derive(Debug, Clone, Eq, Hash)]
 pub enum GameState {
     Load,
     Menu,
-    Main,
+    Main { mode: GameMode, map: Map },
     Pause,
     Edit,
+}
+
+impl PartialEq for GameState {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
+
+impl GameState {
+    #[inline(always)]
+    pub fn load() -> Self {
+        Self::Load
+    }
+
+    #[inline(always)]
+    pub fn menu() -> Self {
+        Self::Menu
+    }
+
+    #[inline(always)]
+    pub fn main() -> Self {
+        Self::Main {
+            mode: Default::default(),
+            map: Default::default(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn pause() -> Self {
+        Self::Pause
+    }
+
+    #[inline(always)]
+    pub fn edit() -> Self {
+        Self::Edit
+    }
 }

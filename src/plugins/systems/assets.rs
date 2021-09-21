@@ -4,66 +4,54 @@ use bevy::{asset::LoadState, prelude::*};
 use bevy_asset_ron::RonAssetPlugin;
 
 use crate::{
-    assets::{PreloadingAssets, SettingsAsset},
+    assets::SettingsAsset,
     prelude::*,
     resources::{TileResource, TileResources},
-    GameState,
+    GameState, PreloadingAssets,
 };
 
 pub struct AssetPlugin;
 
 impl Plugin for AssetPlugin {
     fn build(&self, app: &mut bevy::prelude::AppBuilder) {
-        app.init_resource::<PreloadingAssets>()
-            .init_resource::<TileResources>()
+        app.init_resource::<TileResources>()
+            .init_resource::<PreloadingAssets>()
             .init_resource::<Handle<SettingsAsset>>()
             .add_asset::<Pattern>()
             .add_asset::<GameMode>()
-            .init_asset_loader::<PatternLoader>()
+            .add_asset::<Map>()
             .add_plugin(RonAssetPlugin::<GameMode>::new(&["mode"]))
+            .add_plugin(RonAssetPlugin::<Map>::new(&["map"]))
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
+            .init_asset_loader::<PatternLoader>()
             .add_system_set(
                 // Load setup
-                SystemSet::on_enter(GameState::Load).with_system(load_assets_system.system()),
+                SystemSet::on_enter(GameState::load()).with_system(init_load_system.system()),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Load)
+                SystemSet::on_update(GameState::load())
                     .with_system(assets_loaded_transition_system.system()),
             );
     }
 }
 
-/// Track any loading assets and transition to the next game state when ready
-fn assets_loaded_transition_system(
+fn init_load_system(
     mut state: ResMut<State<GameState>>,
-    loading: Res<PreloadingAssets>,
-    assets: Res<AssetServer>,
-) {
-    if loading
-        .0
-        .iter()
-        .filter(|h| assets.get_load_state(*h) == LoadState::Loading)
-        .count()
-        == 0
-    {
-        // We are done loading! transition state.
-        state.set(GameState::Menu).ok();
-    }
-}
-
-fn load_assets_system(
-    mut loading: ResMut<PreloadingAssets>,
     mut settings_handle: ResMut<Handle<SettingsAsset>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut style: ResMut<TileResources>,
+    mut loading: ResMut<PreloadingAssets>,
     assets: Res<AssetServer>,
 ) {
     // load our settings file
     *settings_handle = assets.load("settings.rfg");
+
     loading.0.push(settings_handle.clone_untyped());
 
     // load all block patterns
-    let patterns = &mut assets.load_folder("blocks").unwrap();
+    let patterns = &mut assets
+        .load_folder("blocks")
+        .expect("Could not load patterns");
     loading.0.append(patterns);
 
     // load textures
@@ -83,10 +71,35 @@ fn load_assets_system(
     };
 
     // load game modes
-    let mode_handles = &mut assets.load_folder("modes").unwrap();
+    let mode_handles = &mut assets.load_folder("modes").expect("Could not load modes");
     loading.0.append(mode_handles);
+
+    // load maps
+    let map_handles = &mut assets.load_folder("maps").expect("Could not load maps");
+    loading.0.append(map_handles);
 
     assets
         .watch_for_changes()
         .expect("could not watch for changes");
+
+    // add all loading to state
+    state.set(GameState::Load).ok();
+}
+
+/// Track any loading assets and transition to the next game state when ready
+fn assets_loaded_transition_system(
+    mut state: ResMut<State<GameState>>,
+    loading: Res<PreloadingAssets>,
+    assets: Res<AssetServer>,
+) {
+    if loading
+        .0
+        .iter()
+        .filter(|h| assets.get_load_state(*h) == LoadState::Loading)
+        .count()
+        == 0
+    {
+        // Transition states to the men
+        state.set(GameState::Menu).ok();
+    }
 }

@@ -9,13 +9,13 @@ impl Plugin for StylePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(ClearColor(Color::hex("1B1920").unwrap()))
             .add_system_set(
-                SystemSet::on_update(GameState::Main)
+                SystemSet::on_update(GameState::main())
                     .with_system(add_sprite_to_tiles_system.system())
                     .label(Label::Process)
                     .before(Label::React),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Main)
+                SystemSet::on_update(GameState::main())
                     .with_system(style_blocks_system.system())
                     .with_system(scored_effect_system.system())
                     .with_system(animate_active_system.system())

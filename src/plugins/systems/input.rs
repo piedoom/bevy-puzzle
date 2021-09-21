@@ -11,7 +11,7 @@ impl Plugin for InputPlugin {
         app.init_resource::<CursorPosition>()
             .add_system(pause_system.system())
             .add_system_set(
-                SystemSet::on_update(GameState::Main)
+                SystemSet::on_update(GameState::main())
                     .with_system(get_cursor_position_system.system())
                     .with_system(rotate_active_system.system())
                     .with_system(add_to_hold_system.system())
@@ -57,31 +57,31 @@ fn get_cursor_position_system(
 
 fn rotate_active_system(
     mut active: Query<&mut Transform, With<ActiveEntity>>,
+    state: Res<State<GameState>>,
     keyboard: Res<Input<KeyCode>>,
-    mode: Res<CurrentGameMode>,
-    modes: Res<Assets<GameMode>>,
 ) {
-    let mode = modes.get(mode.clone()).unwrap();
-    if mode.can_rotate {
-        let right_pressed = keyboard.just_pressed(KeyCode::D);
-        let left_pressed = keyboard.just_pressed(KeyCode::A);
-        if right_pressed || left_pressed {
-            let multiplier = if right_pressed {
-                -1f32
-            } else if left_pressed {
-                1f32
-            } else {
-                0f32
-            };
-            let rot = Quat::from_rotation_z(multiplier * 90f32.to_radians());
+    if let GameState::Main { mode, map } = state.current() {
+        if mode.can_rotate {
+            let right_pressed = keyboard.just_pressed(KeyCode::D);
+            let left_pressed = keyboard.just_pressed(KeyCode::A);
+            if right_pressed || left_pressed {
+                let multiplier = if right_pressed {
+                    -1f32
+                } else if left_pressed {
+                    1f32
+                } else {
+                    0f32
+                };
+                let rot = Quat::from_rotation_z(multiplier * 90f32.to_radians());
 
-            active
-                .single_mut()
-                .map(|mut transform| {
-                    // rotate the overall piece
-                    transform.rotate(rot);
-                })
-                .ok();
+                active
+                    .single_mut()
+                    .map(|mut transform| {
+                        // rotate the overall piece
+                        transform.rotate(rot);
+                    })
+                    .ok();
+            }
         }
     }
 }
@@ -213,7 +213,7 @@ fn active_piece_position_system(
 fn pause_system(mut state: ResMut<State<GameState>>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.just_pressed(KeyCode::Escape) {
         match state.current() {
-            GameState::Main => state.push(GameState::Pause).ok(),
+            GameState::Main { mode: _, map } => state.push(GameState::Pause).ok(),
             GameState::Pause => state.pop().ok(),
             _ => None, // do nothing otherwise
         };

@@ -5,7 +5,9 @@ use bevy::{prelude::*, reflect::TypeUuid};
 
 use super::Pattern;
 
-#[derive(serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Eq)]
+#[derive(
+    serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Eq, Debug, Clone, Hash, Default,
+)]
 #[uuid = "abcdef12-3456-4fa8-adc4-78c5822268f8"]
 pub struct GameMode {
     pub name: String,
@@ -24,8 +26,8 @@ pub struct GameMode {
 }
 
 impl GameMode {
-    pub fn default_name() -> String {
-        String::from("default")
+    pub fn default_name() -> &'static str {
+        "default"
     }
 
     pub fn default_with_patterns(patterns: &Assets<Pattern>) -> Self {
@@ -42,7 +44,7 @@ impl GameMode {
 }
 
 /// Dictates the period over time of the [`crate::prelude::PlacementTimer`]
-#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, Debug, Clone, Hash)]
 pub enum TimerRate {
     Constant(Duration),
     /// The timer progressively gets faster. The game starts at `start_rate`, and continues for n steps `delay`.

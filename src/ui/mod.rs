@@ -17,18 +17,19 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut bevy::prelude::AppBuilder) {
         app.init_resource::<Paused>()
+            .init_resource::<MenuState>()
             .add_system_set(
-                SystemSet::on_update(GameState::Menu)
+                SystemSet::on_update(GameState::menu())
                     .with_system(ui_menu_system.system())
                     .label("main"),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Main)
+                SystemSet::on_update(GameState::main())
                     .with_system(ui_main_system.system())
                     .label("main"),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::Pause)
+                SystemSet::on_update(GameState::pause())
                     .with_system(ui_pause_menu_system.system())
                     .label("pause"),
             );

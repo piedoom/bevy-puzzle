@@ -3,7 +3,7 @@
 
 use std::{fs::File, io::Write, time::Duration};
 
-use crate::prelude::*;
+use crate::{prelude::*, ui::MenuState};
 use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera};
 
 use super::Label;
@@ -12,9 +12,8 @@ pub struct CorePuzzlePlugin;
 
 impl Plugin for CorePuzzlePlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_state(GameState::Load)
+        app.add_state(GameState::load())
             .init_resource::<Score>()
-            .init_resource::<CurrentGameMode>()
             .init_resource::<ActiveEntity>()
             .init_resource::<Step>()
             .init_resource::<Bag>()
@@ -23,15 +22,22 @@ impl Plugin for CorePuzzlePlugin {
             .add_event::<GameEvent>()
             .add_system(process_events_system.system())
             .add_system_set(
-                SystemSet::on_exit(GameState::Load).with_system(set_default_mode_system.system()),
+                SystemSet::on_exit(GameState::load()).with_system(set_default_system.system()),
             )
-            .add_system_set(SystemSet::on_enter(GameState::Main).with_system(setup_system.system()))
             .add_system_set(
-                SystemSet::on_update(GameState::Main)
+                SystemSet::on_enter(GameState::main()).with_system(setup_system.system()),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::main())
                     .with_system(scorer_system.system())
                     .with_system(placement_timer_tick_system.system())
                     .label(Label::Process)
                     .after(Label::Listen),
+            )
+            .add_system_set(
+                SystemSet::on_exit(GameState::main())
+                    .with_system(destroy_map_system.system())
+                    .with_system(reset_game_system.system()),
             );
     }
 }
@@ -84,7 +90,10 @@ fn scorer_system(
             .insert(tile_states::Empty)
             .insert(tile_styles::None);
         // spawn a scoring block
-        let mut transform = transforms.get(e).unwrap().clone();
+        let mut transform = transforms
+            .get(e)
+            .expect("Could not get transform with this entity")
+            .clone();
         transform.translation.z = 2f32;
         cmd.spawn_bundle((
             Tile,
@@ -104,32 +113,21 @@ fn setup_system(
     mut events: EventWriter<GameEvent>,
     mut bag: ResMut<Bag>,
     mut hold: ResMut<Hold>,
-    mut score: ResMut<Score>,
-    mut active: Query<Entity, With<ActiveEntity>>,
     mut next: ResMut<NextUp>,
-    mut step: ResMut<Step>,
+    state: Res<State<GameState>>,
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
-    current_mode: ResMut<CurrentGameMode>,
-    modes: ResMut<Assets<GameMode>>,
     queries: QuerySet<(Query<Entity, With<GameBoard>>, Query<Entity, With<Camera>>)>,
 ) {
     let (board, cameras) = (queries.q0(), queries.q1());
     let settings = settings.get(settings_handle.clone()).unwrap();
-    let mode = modes.get(current_mode.clone()).unwrap();
+    let mode = if let GameState::Main { mode, map } = state.current() {
+        mode
+    } else {
+        unreachable!()
+    };
     let (size_x, size_y) = (mode.board_size.0, mode.board_size.1);
-
-    // reset everything for good measure
-    reset_game(
-        &mut cmd,
-        &mut score,
-        &mut active,
-        &mut next,
-        &mut bag,
-        &mut step,
-        &board,
-    );
 
     // create game grid
     for x in 0..size_x as usize {
@@ -214,41 +212,44 @@ fn placement_timer_tick_system(
 }
 
 /// Trigger any other stuff that needs to be done after the loading stage
-fn set_default_mode_system(
-    mut modes: ResMut<Assets<GameMode>>,
-    mut events: EventWriter<GameEvent>,
-    patterns: Res<Assets<Pattern>>,
+fn set_default_system(
+    mut menu_state: ResMut<MenuState>,
+    modes: Res<Assets<GameMode>>,
+    maps: Res<Assets<Map>>,
 ) {
-    // The current mode is unset. Find the asset titled "default" or load in the default asset
-    let user_default = modes
-        .iter()
-        .find(|(_, mode)| mode.name == GameMode::default_name())
-        .map(|(id, _)| modes.get_handle(id));
+    // The current mode is unset. Find the asset titled "default"
+    menu_state.mode = modes.iter().find_map(|(id, mode)| {
+        if mode.name == GameMode::default_name() {
+            Some(modes.get_handle(id))
+        } else {
+            None
+        }
+    });
 
-    let mode =
-        user_default.unwrap_or_else(|| modes.add(GameMode::default_with_patterns(&*patterns)));
-
-    events.send(GameEvent::SetGameMode(mode));
+    menu_state.map = maps.iter().find_map(|(id, map)| {
+        if map.name == Map::default_name() {
+            Some(maps.get_handle(id))
+        } else {
+            None
+        }
+    });
 }
 
 fn process_events_system(
     mut cmd: Commands,
     mut events: ResMut<Events<GameEvent>>,
-    mut current_mode: ResMut<CurrentGameMode>,
     mut bag: ResMut<Bag>,
     mut next: ResMut<NextUp>,
-    mut score: ResMut<Score>,
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
     mut state: ResMut<State<GameState>>,
     mut step: ResMut<Step>,
-    mut active: Query<Entity, With<ActiveEntity>>,
+    score: ResMut<Score>,
     settings_handle: Res<Handle<SettingsAsset>>,
     tiles: QuerySet<(
         Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
         Query<Entity, With<GameBoard>>,
         Query<(Entity, &Pattern), With<ActiveEntity>>,
     )>,
-    modes: Res<Assets<GameMode>>,
     pattern_assets: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
 ) {
@@ -265,59 +266,39 @@ fn process_events_system(
 
                 let transform = Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32);
 
-                // Calculate the amount of time we should have
-                let mode = modes.get(current_mode.clone()).unwrap();
-                let timer = step.create_timer(mode);
+                if let GameState::Main { mode, map } = state.current() {
+                    let mode = mode;
+                    let timer = step.create_timer(mode);
 
-                // Create the new active entity
-                let entity = cmd
-                    .spawn_bundle((
-                        transform.clone(),
-                        GlobalTransform::from(transform.clone()),
-                        pattern.clone(),
-                        timer,
-                        ActiveEntity,
-                    ))
-                    .with_children(|p| {
-                        for block in pattern.blocks.iter() {
-                            // TODO: adjust the 0.5 constant offset to allow for more natural (and dynamic) rotations
-                            // based off of block size. We likely will need to determine this when loading the asset
-                            let local_transform =
-                                Transform::from_xyz(block.x - 0.5, block.y + 0.5, 1f32);
-                            p.spawn_bundle((
-                                tile_states::Full,
-                                local_transform,
-                                GlobalTransform::from(local_transform),
-                                pattern.color.clone(),
-                                Tile,
-                            ));
-                        }
-                    })
-                    .id();
-                if unswappable {
-                    cmd.entity(entity).insert(Unswappable);
+                    // Create the new active entity
+                    let entity = cmd
+                        .spawn_bundle((
+                            transform.clone(),
+                            GlobalTransform::from(transform.clone()),
+                            pattern.clone(),
+                            timer,
+                            ActiveEntity,
+                        ))
+                        .with_children(|p| {
+                            for block in pattern.blocks.iter() {
+                                // TODO: adjust the 0.5 constant offset to allow for more natural (and dynamic) rotations
+                                // based off of block size. We likely will need to determine this when loading the asset
+                                let local_transform =
+                                    Transform::from_xyz(block.x - 0.5, block.y + 0.5, 1f32);
+                                p.spawn_bundle((
+                                    tile_states::Full,
+                                    local_transform,
+                                    GlobalTransform::from(local_transform),
+                                    pattern.color.clone(),
+                                    Tile,
+                                ));
+                            }
+                        })
+                        .id();
+                    if unswappable {
+                        cmd.entity(entity).insert(Unswappable);
+                    }
                 }
-            }
-            GameEvent::SetGameMode(mode_handle) => {
-                // Set the active game mode
-                *current_mode = mode_handle.clone();
-                let mode = modes.get(mode_handle).unwrap();
-
-                // Reset the bag and its pieces
-                let patterns: Vec<Handle<Pattern>> = pattern_assets
-                    .iter()
-                    .filter_map(|(id, pattern)| {
-                        // Only include pieces specified in the mode
-                        if mode.patterns.contains(&pattern.name) {
-                            Some(pattern_assets.get_handle(id))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                *bag = Bag::new(patterns);
-                *next = bag.next().unwrap();
             }
             GameEvent::CommitActive { loss_on_failure } => {
                 // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
@@ -373,20 +354,39 @@ fn process_events_system(
                         file.write_all(text.as_bytes()).ok();
                     }
                 }
-                reset_game(
-                    &mut cmd,
-                    &mut score,
-                    &mut active,
-                    &mut next,
-                    &mut bag,
-                    &mut step,
-                    &board,
-                );
-                state.replace(GameState::Menu).ok();
+
+                state.replace(GameState::menu()).ok();
             }
         }
     }
     for event in send_events {
         events.send(event);
     }
+}
+
+/// Re-initialize all other needed game state to default
+pub(crate) fn reset_game_system(
+    mut cmd: Commands,
+    mut score: ResMut<Score>,
+    mut active: Query<Entity, With<ActiveEntity>>,
+    mut next: ResMut<NextUp>,
+    mut bag: ResMut<Bag>,
+    mut step: ResMut<Step>,
+) {
+    // Clean up
+    *score = 0;
+    *next = Handle::<Pattern>::default();
+    *bag = Bag::default();
+    step.reset();
+    active
+        .single_mut()
+        .map(|entity| cmd.entity(entity).despawn_recursive())
+        .ok();
+}
+
+/// Destroy the game board
+pub(crate) fn destroy_map_system(mut cmd: Commands, board: Query<Entity, With<GameBoard>>) {
+    board.for_each(|e| {
+        cmd.entity(e).despawn_recursive();
+    });
 }

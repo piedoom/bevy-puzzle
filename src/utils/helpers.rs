@@ -1,7 +1,5 @@
 use bevy::{ecs::component::Component, prelude::*};
 
-use crate::prelude::*;
-
 /// Transition states in a fn as to avoid invalid states
 #[inline(always)]
 pub(crate) fn transition<F, T>(cmd: &mut Commands, entity: Entity)
@@ -26,28 +24,4 @@ pub(crate) fn style_with_texture(
         texture: Some(texture),
     });
     cmd.entity(entity).insert(new_material.clone());
-}
-
-/// Destroy the game board and re-initialize all game state to default
-pub(crate) fn reset_game(
-    cmd: &mut Commands,
-    score: &mut Score,
-    active: &mut Query<Entity, With<ActiveEntity>>,
-    next: &mut ResMut<NextUp>,
-    bag: &mut ResMut<Bag>,
-    step: &mut ResMut<Step>,
-    board: &Query<Entity, With<GameBoard>>,
-) {
-    // Clean up
-    *score = 0;
-    **next = Handle::<Pattern>::default();
-    **bag = Bag::default();
-    step.reset();
-    active
-        .single_mut()
-        .map(|entity| cmd.entity(entity).despawn_recursive())
-        .ok();
-    board.for_each(|e| {
-        cmd.entity(e).despawn_recursive();
-    });
 }
