@@ -3,7 +3,10 @@
 
 use std::{fs::File, io::Write, time::Duration};
 
-use crate::{prelude::*, ui::MenuState};
+use crate::{
+    prelude::*,
+    ui::{Bounds, MenuState},
+};
 use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera};
 
 use super::Label;
@@ -25,7 +28,9 @@ impl Plugin for CorePuzzlePlugin {
                 SystemSet::on_exit(GameState::load()).with_system(set_default_system.system()),
             )
             .add_system_set(
-                SystemSet::on_enter(GameState::main()).with_system(setup_system.system()),
+                SystemSet::on_enter(GameState::main())
+                    .with_system(setup_system.system())
+                    .label("setup"),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::main())
@@ -114,82 +119,67 @@ fn setup_system(
     mut bag: ResMut<Bag>,
     mut hold: ResMut<Hold>,
     mut next: ResMut<NextUp>,
+    mut bounds: ResMut<Bounds>,
     state: Res<State<GameState>>,
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
     queries: QuerySet<(Query<Entity, With<GameBoard>>, Query<Entity, With<Camera>>)>,
 ) {
-    let (board, cameras) = (queries.q0(), queries.q1());
+    let (_board, cameras) = (queries.q0(), queries.q1());
     let settings = settings.get(settings_handle.clone()).unwrap();
-    let mode = if let GameState::Main { mode, map } = state.current() {
-        mode
-    } else {
-        unreachable!()
-    };
-    let (size_x, size_y) = (mode.board_size.0, mode.board_size.1);
+    if let GameState::Main { mode, map } = state.current() {
+        // calculate screen position from already calculated world bounds
+        let rect = map.calculate_rect();
+        // adjust to get corners of tiles instead of center
+        let expanded = rect.expand(0.5);
+        // this rect is now our world coordinates! Woohoo, easy.
+        bounds.world = expanded; // assign world coords for now
+                                 // lets get local screen coordinates from this world coordinates later on when we are positive a camera exists
 
-    // create game grid
-    for x in 0..size_x as usize {
-        for y in 0..size_y as usize {
-            let transform = Transform::from_xyz(x as f32, y as f32, 0f32);
+        // Use unpadded bounds here just so we can successfully center the camera
+        let (size_x, size_y) = (rect.width(), rect.height());
+        // Create camera if none exists. Reset the transform since the map may have changed
+        let camera_entity = cameras.single().map(|e| e).unwrap_or(cmd.spawn().id());
 
-            // add a square
-            let tile = cmd
-                .spawn_bundle((
-                    tile_states::Empty,
-                    transform,
-                    GameBoard,
-                    Tile,
-                    tile_styles::None,
-                ))
-                .id();
-
-            // Add extent if at certain position
-            if x + 1 == size_x {
-                if y == 0 {
-                    cmd.entity(tile).insert(BoardBottomRightExtent);
-                } else if y + 1 == size_y {
-                    cmd.entity(tile).insert(BoardTopRightExtent);
-                }
-            } else if x == 0 {
-                if y == 0 {
-                    cmd.entity(tile).insert(BoardBottomLeftExtent);
-                } else if y + 1 == size_y {
-                    cmd.entity(tile).insert(BoardTopLeftExtent);
-                }
-            }
-        }
-    }
-
-    // Create camera if none exists
-    if cameras.iter().count() == 0 {
-        let camera_entity = cmd.spawn().id();
+        // Set the position and scale of the camera on every start
         // Calculate the overall size of the board, and divide to find the center point
-        let trans = Transform::from_xyz(size_x as f32 / 2f32, size_y as f32 / 2f32, 10.0);
+        let trans = Transform::from_xyz(size_x / 2f32, size_y / 2f32, 10.0);
         let mut camera_bundle = OrthographicCameraBundle::new_2d();
         camera_bundle.orthographic_projection.scale = settings.camera_scale;
-        cmd.entity(camera_entity)
-            .insert_bundle(camera_bundle)
-            .insert(trans);
-    };
+        camera_bundle.transform = trans.clone();
+        // camera_bundle.global_transform = GlobalTransform::from(trans.clone());
+        cmd.entity(camera_entity).insert_bundle(camera_bundle);
 
-    *bag = Bag::new(
-        patterns
-            .iter()
-            .filter(|(_, pattern)| mode.patterns.contains(&pattern.name))
-            .map(|(x, _)| patterns.get_handle(x))
-            .collect(),
-    );
-    *next = bag.next().unwrap();
-    events.send(GameEvent::SetActivePattern {
-        pattern: patterns.get(next.clone()).unwrap().clone(),
-        unswappable: false,
-    });
-    *next = bag.next().unwrap();
+        // create game map
+        for (x, y) in &map.pattern {
+            let transform = Transform::from_xyz(*x as f32, *y as f32, 0f32);
+            cmd.spawn_bundle((
+                tile_states::Empty,
+                transform,
+                GameBoard,
+                Tile,
+                tile_styles::None,
+            ));
+        }
 
-    // remove any piece from the hold
-    hold.clear();
+        *bag = Bag::new(
+            patterns
+                .iter()
+                .filter(|(_, pattern)| mode.patterns.contains(&pattern.name))
+                .map(|(x, _)| patterns.get_handle(x))
+                .collect(),
+        );
+        *next = bag.next().unwrap();
+        events.send(GameEvent::SetActivePattern {
+            pattern: patterns.get(next.clone()).unwrap().clone(),
+            unswappable: false,
+        });
+        *next = bag.next().unwrap();
+
+        // remove any piece from the hold
+        hold.clear();
+    }
 }
 
 fn placement_timer_tick_system(
@@ -253,7 +243,7 @@ fn process_events_system(
     pattern_assets: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
 ) {
-    let (hover, board, active_pattern) = (tiles.q0(), tiles.q1(), tiles.q2());
+    let (hover, _board, active_pattern) = (tiles.q0(), tiles.q1(), tiles.q2());
     let mut send_events = vec![];
     for event in events.drain() {
         match event {
@@ -266,7 +256,7 @@ fn process_events_system(
 
                 let transform = Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32);
 
-                if let GameState::Main { mode, map } = state.current() {
+                if let GameState::Main { mode, map: _map } = state.current() {
                     let mode = mode;
                     let timer = step.create_timer(mode);
 
@@ -372,8 +362,10 @@ pub(crate) fn reset_game_system(
     mut next: ResMut<NextUp>,
     mut bag: ResMut<Bag>,
     mut step: ResMut<Step>,
+    cameras: Query<Entity, With<Camera>>,
 ) {
     // Clean up
+    cameras.for_each(|e| cmd.entity(e).despawn_recursive());
     *score = 0;
     *next = Handle::<Pattern>::default();
     *bag = Bag::default();

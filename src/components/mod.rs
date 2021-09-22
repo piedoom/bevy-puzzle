@@ -1,7 +1,6 @@
 use bevy::core::Timer;
 
 mod tiles;
-mod ui;
 
 /// Marks the parent entity of several tiles that act as the game's cursor for placing blocks
 #[derive(Default)]
@@ -11,4 +10,3 @@ pub struct ActiveEntity;
 pub type PlacementTimer = Timer;
 
 pub use tiles::*;
-pub use ui::*;

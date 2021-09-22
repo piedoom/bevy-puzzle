@@ -18,6 +18,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut bevy::prelude::AppBuilder) {
         app.init_resource::<Paused>()
             .init_resource::<MenuState>()
+            .insert_resource(Bounds::default())
             .add_system_set(
                 SystemSet::on_update(GameState::menu())
                     .with_system(ui_menu_system.system())

@@ -7,6 +7,57 @@ use crate::assets::*;
 use crate::prelude::*;
 use crate::ui::widgets::PatternWidget;
 
+pub(crate) struct Bounds {
+    pub(crate) world: egui::Rect,
+}
+
+impl Default for Bounds {
+    fn default() -> Self {
+        Self {
+            world: egui::Rect::NOTHING,
+        }
+    }
+}
+
+impl Bounds {
+    pub fn screen(
+        &self,
+        camera: &Camera,
+        windows: &Windows,
+        camera_transform: &GlobalTransform,
+    ) -> egui::Rect {
+        let min_world = self.world.left_bottom();
+        let max_world = self.world.right_top();
+
+        let min_raw = camera
+            .world_to_screen(
+                &windows,
+                camera_transform,
+                Vec3::new(min_world.x, min_world.y, 0f32),
+            )
+            // TODO: need to account for this lol
+            .unwrap();
+
+        let max_raw = camera
+            .world_to_screen(
+                &windows,
+                camera_transform,
+                Vec3::new(max_world.x, max_world.y, 0f32),
+            )
+            .unwrap();
+
+        let height = windows
+            .get_primary()
+            .map(|w| w.height())
+            .unwrap_or_default();
+
+        let min = Pos2::new(min_raw.x, height - min_raw.y);
+        let max = Pos2::new(max_raw.x, height - max_raw.y);
+
+        egui::Rect { min, max }
+    }
+}
+
 /// Draw the UI for our main game state
 pub(crate) fn ui_main_system(
     windows: Res<Windows>,
@@ -18,89 +69,11 @@ pub(crate) fn ui_main_system(
     next_up: Res<NextUp>,
     patterns: Res<Assets<Pattern>>,
     state: Res<State<GameState>>,
-    extents: QuerySet<(
-        Query<&GlobalTransform, With<BoardTopLeftExtent>>,
-        Query<&GlobalTransform, With<BoardTopRightExtent>>,
-        Query<&GlobalTransform, With<BoardBottomLeftExtent>>,
-        Query<&GlobalTransform, With<BoardBottomRightExtent>>,
-    )>,
+    bounds: Res<Bounds>,
 ) {
     // get current mode
-    if let GameState::Main { mode, .. } = state.current() {
+    if let GameState::Main { mode, map: _ } = state.current() {
         if let Ok((camera, camera_transform)) = camera.single() {
-            // get the positions of the extents of the game board to align UI
-            let (top_left, top_right, bottom_left, bottom_right) = {
-                // get game positions
-                let (mut tl, mut tr, mut bl, mut br) = {
-                    (
-                        extents
-                            .q0()
-                            .single()
-                            .map(|t| t.translation)
-                            .unwrap_or_default(),
-                        extents
-                            .q1()
-                            .single()
-                            .map(|t| t.translation)
-                            .unwrap_or_default(),
-                        extents
-                            .q2()
-                            .single()
-                            .map(|t| t.translation)
-                            .unwrap_or_default(),
-                        extents
-                            .q3()
-                            .single()
-                            .map(|t| t.translation)
-                            .unwrap_or_default(),
-                    )
-                };
-
-                // adjust to get corners of tiles instead of center
-                tl.y += 0.5;
-                tl.x -= 0.5;
-
-                tr.y += 0.5;
-                tr.x += 0.5;
-
-                bl.y -= 0.5;
-                bl.x -= 0.5;
-
-                br.y -= 0.5;
-                br.x += 0.5;
-
-                let (mut tl, mut tr, mut bl, mut br) = (
-                    camera
-                        .world_to_screen(&windows, camera_transform, tl)
-                        .unwrap(),
-                    camera
-                        .world_to_screen(&windows, camera_transform, tr)
-                        .unwrap(),
-                    camera
-                        .world_to_screen(&windows, camera_transform, bl)
-                        .unwrap(),
-                    camera
-                        .world_to_screen(&windows, camera_transform, br)
-                        .unwrap(),
-                );
-
-                // get window height for conversion
-                let height = windows.get_primary().map(|x| x.height()).unwrap_or(0f32);
-
-                // Convert to egui coordinates (negative y)
-                tl.y = -tl.y + height;
-                tr.y = -tr.y + height;
-                bl.y = -bl.y + height;
-                br.y = -br.y + height;
-
-                (
-                    Pos2::new(tl.x, tl.y),
-                    Pos2::new(tr.x, tr.y),
-                    Pos2::new(bl.x, bl.y),
-                    Pos2::new(br.x, br.y),
-                )
-            };
-
             // cursor
             // get active position
             active
@@ -141,16 +114,19 @@ pub(crate) fn ui_main_system(
                 })
                 .ok();
 
-            // Score
+            // Score and other ui stuff
+            // Get the extents with on-screen pixel values so we can add UI stuff aligned to the gameboard.
+            let extents = bounds.screen(&camera, &windows, &camera_transform);
+
             egui::containers::Area::new("score")
-                .fixed_pos(top_left + egui::Vec2::new(0f32, -32f32))
+                .fixed_pos(extents.left_top() + egui::Vec2::new(0f32, -32f32))
                 .show(ctx.ctx(), |ui| {
                     ui.heading(format!("Score: {}", score.to_string()));
                 });
 
             // Side panel info
             egui::containers::Area::new("panel")
-                .fixed_pos(top_right + egui::Vec2::new(100f32, 0f32))
+                .fixed_pos(extents.right_top() + egui::Vec2::new(32f32, 0f32)) // + egui::Vec2::new(100f32, 0f32))
                 .show(ctx.ctx(), |ui| {
                     ui.vertical(|ui| {
                         // Create a widget for our held piece, if we are allowed
