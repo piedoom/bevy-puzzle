@@ -234,13 +234,13 @@ fn setup_system(
                                  // lets get local screen coordinates from this world coordinates later on when we are positive a camera exists
 
         // Use unpadded bounds here just so we can successfully center the camera
-        let (size_x, size_y) = (rect.width(), rect.height());
+        let center = rect.center();
         // Create camera if none exists. Reset the transform since the map may have changed
         let camera_entity = cameras.single().map(|e| e).unwrap_or(cmd.spawn().id());
 
         // Set the position and scale of the camera on every start
         // Calculate the overall size of the board, and divide to find the center point
-        let trans = Transform::from_xyz(size_x / 2f32, size_y / 2f32, 10.0);
+        let trans = Transform::from_xyz(center.x, center.y, 10.0);
         let mut camera_bundle = OrthographicCameraBundle::new_2d();
         camera_bundle.orthographic_projection.scale = settings.camera_scale;
         camera_bundle.transform = trans.clone();
