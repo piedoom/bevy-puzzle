@@ -1,5 +1,5 @@
 //! Systems and other data structures related to obtaining user input and modifying the game in some way
-use bevy::{prelude::*, render::camera::*};
+use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
 
 use crate::prelude::*;
 
@@ -9,10 +9,12 @@ pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<CursorPosition>()
+            .insert_resource(ActivePositionMode::Mouse)
             .add_system(pause_system.system())
+            .add_system(determine_input_method_system.system())
+            .add_system(get_cursor_position_system.system())
             .add_system_set(
                 SystemSet::on_update(GameState::main())
-                    .with_system(get_cursor_position_system.system())
                     .with_system(rotate_active_system.system())
                     .with_system(add_to_hold_system.system())
                     .with_system(click_commit_system.system())
@@ -33,25 +35,26 @@ fn get_cursor_position_system(
     mut cursor_pos: ResMut<CursorPosition>,
 ) {
     // get the primary window
-    let window = windows.get_primary().unwrap();
+    if let Some(window) = windows.get_primary() {
+        // check if the cursor is in the primary window
+        if let Some(pos) = window.cursor_position() {
+            // get the size of the window
+            let size = Vec2::new(window.width() as f32, window.height() as f32);
 
-    // check if the cursor is in the primary window
-    if let Some(pos) = window.cursor_position() {
-        // get the size of the window
-        let size = Vec2::new(window.width() as f32, window.height() as f32);
+            // the default orthographic projection is in pixels from the center;
+            // just undo the translation
+            let p = pos - size / 2.0;
 
-        // the default orthographic projection is in pixels from the center;
-        // just undo the translation
-        let p = pos - size / 2.0;
-
-        // assuming there is exactly one main camera entity, so this is OK
-        let (camera_transform, proj) = cameras.single().unwrap();
-
-        // apply the camera transform
-        let pos_world = camera_transform.compute_matrix() * proj.scale * p.extend(0.0).extend(1.0);
-        let pos_world = Vec2::from(pos_world);
-        *cursor_pos.local = *pos_world;
-        *cursor_pos.global = *(pos_world + Vec2::from(camera_transform.translation));
+            // assuming there is exactly one main camera entity, so this is OK
+            if let Ok((camera_transform, proj)) = cameras.single() {
+                // apply the camera transform
+                let pos_world =
+                    camera_transform.compute_matrix() * proj.scale * p.extend(0.0).extend(1.0);
+                let pos_world = Vec2::from(pos_world);
+                *cursor_pos.local = *pos_world;
+                *cursor_pos.global = *(pos_world + Vec2::from(camera_transform.translation));
+            }
+        }
     }
 }
 
@@ -107,8 +110,12 @@ fn add_to_hold_system(
 }
 
 /// Commit a piece on click. Failure should not end in a loss.
-fn click_commit_system(mut events: EventWriter<GameEvent>, input: Res<Input<MouseButton>>) {
-    if input.just_pressed(MouseButton::Left) {
+fn click_commit_system(
+    mut events: EventWriter<GameEvent>,
+    input: Res<Input<MouseButton>>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if input.just_pressed(MouseButton::Left) || keyboard.just_pressed(KeyCode::Space) {
         events.send(GameEvent::CommitActive {
             loss_on_failure: false,
         });
@@ -200,22 +207,84 @@ fn update_hovered_system(
         .ok();
 }
 
-fn active_piece_position_system(
+pub(crate) fn active_piece_position_system(
+    position_mode: Res<ActivePositionMode>,
     active: Query<&mut Transform, With<ActiveEntity>>,
     cursor: Res<CursorPosition>,
+    keyboard: Res<Input<KeyCode>>,
 ) {
-    active.for_each_mut(|mut transform| {
-        transform.translation.x = cursor.global.x;
-        transform.translation.y = cursor.global.y;
-    });
+    match *position_mode {
+        ActivePositionMode::Keyboard => {
+            let move_delta = keyboard.get_just_pressed().fold(Vec2::ZERO, |acc, key| {
+                acc + match key {
+                    KeyCode::Up => Vec2::Y,
+                    KeyCode::Down => -Vec2::Y,
+                    KeyCode::Right => Vec2::X,
+                    KeyCode::Left => -Vec2::X,
+                    _ => Vec2::ZERO,
+                }
+            });
+            active.for_each_mut(|mut transform| {
+                transform.translation += move_delta.extend(0f32);
+            });
+        }
+        ActivePositionMode::Mouse => {
+            active.for_each_mut(|mut transform| {
+                transform.translation.x = cursor.global.x;
+                transform.translation.y = cursor.global.y;
+            });
+        }
+    }
 }
 
 fn pause_system(mut state: ResMut<State<GameState>>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.just_pressed(KeyCode::Escape) {
         match state.current() {
             GameState::Main { mode: _, map: _map } => state.push(GameState::Pause).ok(),
+            GameState::Edit => state.push(GameState::Pause).ok(),
             GameState::Pause => state.pop().ok(),
             _ => None, // do nothing otherwise
         };
+    }
+}
+
+fn determine_input_method_system(
+    mut position_mode: ResMut<ActivePositionMode>,
+    mut mouse_motion: EventReader<MouseMotion>,
+    active: Query<&mut Transform, With<ActiveEntity>>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    // If any of the move keys are pressed, set to keyboard positioning
+    match *position_mode {
+        ActivePositionMode::Keyboard =>
+        // If the mouse has any motion, set mouse positioning mode
+        {
+            if mouse_motion
+                .iter()
+                .fold(Vec2::ZERO, |acc, mouse| acc + mouse.delta)
+                != Vec2::ZERO
+            {
+                *position_mode = ActivePositionMode::Mouse;
+            }
+        }
+        ActivePositionMode::Mouse => {
+            if keyboard
+                .get_pressed()
+                .filter(|k| {
+                    *k == &KeyCode::Up
+                        || *k == &KeyCode::Down
+                        || *k == &KeyCode::Left
+                        || *k == &KeyCode::Right
+                })
+                .count()
+                > 0
+            {
+                *position_mode = ActivePositionMode::Keyboard;
+                // also set to center the tile
+                active.for_each_mut(|mut t| {
+                    t.translation = t.translation.round() + Vec3::new(0.5, 0.5, 0.0);
+                });
+            }
+        }
     }
 }

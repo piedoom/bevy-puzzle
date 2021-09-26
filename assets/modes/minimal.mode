@@ -1,6 +1,5 @@
 GameMode(
     name: "minimal",
-    board_size: (9, 9),
     can_rotate: false,
     can_hold: false,
     can_peek: false,
@@ -14,4 +13,5 @@ GameMode(
         "snake left",
         "snake right",
     ],
+    scorer: Line(Horizontal),
 )

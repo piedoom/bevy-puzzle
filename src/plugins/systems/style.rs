@@ -7,21 +7,27 @@ pub struct StylePlugin;
 
 impl Plugin for StylePlugin {
     fn build(&self, app: &mut AppBuilder) {
+        let process = |state: GameState| -> SystemSet {
+            SystemSet::on_update(state)
+                .with_system(add_sprite_to_tiles_system.system())
+                .label(Label::Process)
+                .before(Label::React)
+        };
+
+        let react = |state: GameState| -> SystemSet {
+            SystemSet::on_update(state)
+                .with_system(style_blocks_system.system())
+                .with_system(scored_effect_system.system())
+                .with_system(animate_active_system.system())
+                .label(Label::React)
+                .after(Label::Process)
+        };
+
         app.insert_resource(ClearColor(Color::hex("1B1920").unwrap()))
-            .add_system_set(
-                SystemSet::on_update(GameState::main())
-                    .with_system(add_sprite_to_tiles_system.system())
-                    .label(Label::Process)
-                    .before(Label::React),
-            )
-            .add_system_set(
-                SystemSet::on_update(GameState::main())
-                    .with_system(style_blocks_system.system())
-                    .with_system(scored_effect_system.system())
-                    .with_system(animate_active_system.system())
-                    .label(Label::React)
-                    .after(Label::Process),
-            );
+            .add_system_set(process(GameState::main()))
+            .add_system_set(react(GameState::main()))
+            .add_system_set(process(GameState::edit()))
+            .add_system_set(react(GameState::edit()));
     }
 }
 
@@ -62,7 +68,7 @@ fn style_blocks_system(
         (
             Added<tile_states::Empty>,
             With<tile_styles::None>,
-            With<GameBoard>,
+            // With<GameBoard>,
         ),
     >,
     scored: Query<Entity, Added<tile_states::Scored>>,

@@ -20,9 +20,10 @@ pub(crate) fn ui_menu_system(
     modes: Res<Assets<GameMode>>,
     maps: Res<Assets<Map>>,
 ) {
-    CentralPanel::default().show(ctx.ctx(), |ui| {
-        let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
-        ui.centered_and_justified(|ui| {
+    egui::Area::new("menu")
+        .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .show(ctx.ctx(), |ui| {
+            let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
             // Show high scores
             ui.vertical(|ui| {
                 // Loop over highest scores and display a text line for each
@@ -81,16 +82,22 @@ pub(crate) fn ui_menu_system(
             });
 
             // Start game button
-            if ui.button("Start").clicked() {
-                state
-                    .set(GameState::Main {
-                        mode: mode.unwrap().clone(),
-                        map: map.unwrap().clone(),
-                    })
-                    .ok();
-            }
+            ui.horizontal(|ui| {
+                if ui.button("Start").clicked() {
+                    state
+                        .set(GameState::Main {
+                            mode: mode.unwrap().clone(),
+                            map: map.unwrap().clone(),
+                        })
+                        .ok();
+                }
+
+                // Game editor
+                if ui.button("Editor").clicked() {
+                    state.set(GameState::Edit).ok();
+                }
+            });
         });
-    });
 }
 
 pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: ResMut<EguiContext>) {

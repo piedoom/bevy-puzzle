@@ -8,3 +8,9 @@ pub struct CursorPosition {
     pub local: Vec2,
     pub global: Vec2,
 }
+
+/// Which device is currently controlling where the active piece is on screen.
+pub enum ActivePositionMode {
+    Keyboard,
+    Mouse,
+}

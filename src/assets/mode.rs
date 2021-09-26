@@ -1,7 +1,7 @@
 //! Describes different properties about gameplay that can be loaded, saved, and applied.
 use std::time::Duration;
 
-use bevy::{prelude::*, reflect::TypeUuid};
+use bevy::{prelude::Assets, reflect::TypeUuid};
 
 use super::Pattern;
 
@@ -11,7 +11,6 @@ use super::Pattern;
 #[uuid = "abcdef12-3456-4fa8-adc4-78c5822268f8"]
 pub struct GameMode {
     pub name: String,
-    pub board_size: (usize, usize),
     /// Whether or not the active piece can be rotated
     pub can_rotate: bool,
     /// Whether or not the active piece can be swapped with the [`crate::prelude::Hold`]
@@ -23,6 +22,29 @@ pub struct GameMode {
     /// Only allow some patterns in this mode. If [`None`], then all loaded patterns are used. This is a vector of names that can be used to find
     /// the correct patterns. This is not a Handle as that changes at runtime, and we need this data to persist.
     pub patterns: Vec<String>,
+    pub scorer: Scorer,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, Debug, Clone, Hash)]
+pub enum Scorer {
+    /// Scores when a square with a diameter of `n` is completely filled. Because some piece are
+    /// as small as 2x2, values less than 3 should be avoided, else they will auto-score when placed.
+    Square(usize),
+    /// Scores when a full line has been completed vertically or horizontally
+    Line(ScoreDirection),
+}
+
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, Debug, Clone, Hash)]
+pub enum ScoreDirection {
+    Vertical,
+    Horizontal,
+    Both,
+}
+
+impl Default for Scorer {
+    fn default() -> Self {
+        Self::Square(3)
+    }
 }
 
 impl GameMode {
@@ -33,12 +55,8 @@ impl GameMode {
     pub fn default_with_patterns(patterns: &Assets<Pattern>) -> Self {
         Self {
             name: "default".into(),
-            board_size: (9, 9),
-            can_rotate: true,
-            can_hold: true,
-            can_peek: true,
-            timer_rate: Default::default(),
             patterns: patterns.iter().map(|(_, p)| p.name.clone()).collect(),
+            ..Default::default()
         }
     }
 }

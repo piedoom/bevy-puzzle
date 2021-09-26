@@ -51,63 +51,159 @@ impl Plugin for CorePuzzlePlugin {
 fn scorer_system(
     mut cmd: Commands,
     mut score: ResMut<Score>,
-    full_tiles: Query<(Entity, &Transform), With<tile_states::Full>>,
+    state: Res<State<GameState>>,
+    full_tiles: Query<(Entity, &Transform), (With<tile_states::Full>, With<GameBoard>)>,
+    board: Query<(Entity, &Transform, Option<&tile_states::Full>), With<GameBoard>>,
     transforms: Query<&Transform>,
 ) {
-    let mut scoring_tiles = vec![];
-    full_tiles.for_each(|(_, t)| {
-        let mut possible_tiles = vec![];
-        let mut scored = true;
+    if let GameState::Main { map: _, mode } = state.current() {
+        // Important little vec that keeps track of all the scoring tiles that will be added at the end of the system loop
+        let mut scoring_tiles = vec![];
 
-        for x in -1..=1 {
-            for y in -1..=1 {
-                // Get the current block (in all blocks)
-                let mut cmp_translation = t.translation.truncate();
-                cmp_translation.x += x as f32;
-                cmp_translation.y += y as f32;
-                if let Some((entity, _)) = full_tiles
-                    .iter()
-                    .find(|(_, t)| Vec2::from(t.translation) == cmp_translation)
-                {
-                    possible_tiles.push(entity);
-                } else {
-                    // couldn't find one! failed.
-                    scored = false;
+        // do the scoring
+        match &mode.scorer {
+            Scorer::Square(size) => {
+                // Loop through every full tile to see if it is n tiles wide
+                full_tiles.for_each(|(_, t)| {
+                    let mut possible_tiles = vec![];
+                    let mut scored = true;
+                    for x in 0..*size {
+                        for y in 0..*size {
+                            // Get the current block (in all blocks)
+                            let mut cmp_translation = t.translation.truncate();
+                            cmp_translation.x += x as f32;
+                            cmp_translation.y += y as f32;
+                            if let Some((entity, _)) = full_tiles
+                                .iter()
+                                .find(|(_, t)| Vec2::from(t.translation) == cmp_translation)
+                            {
+                                possible_tiles.push(entity);
+                            } else {
+                                // couldn't find one! failed.
+                                scored = false;
+                            };
+                        }
+                    }
+                    if scored {
+                        scoring_tiles.extend_from_slice(&possible_tiles);
+                    }
+                });
+            }
+            Scorer::Line(direction) => {
+                // Takes in a current tile entity and loops over everything and returns a vec of entities that scored if it did, and nothing if it didnt
+                let score_line_recursive = |start, dir| -> Vec<Entity> {
+                    let mut scored = vec![start];
+                    let in_progress = true;
+
+                    #[allow(unused_assignments)]
+                    let mut next_pos: Vec2 = Default::default();
+
+                    // get starting transform
+                    if let Ok((_, t, _)) = board.get(start) {
+                        // set the start position
+                        next_pos = t.board_position();
+                        // loop while this bool is true lol
+                        while in_progress {
+                            // advance position to the next position
+                            next_pos += dir;
+                            // If the tile at the next position is a tile, check to see what kind
+                            if let Some((e, _, is_full)) =
+                                board.iter().find(|(_, next_transform, _)| {
+                                    next_pos == next_transform.board_position()
+                                })
+                            {
+                                // if it is empty, end early without scoring. otherwise, continue the loop and add the entity to scored... for NOW
+                                match is_full.is_some() {
+                                    true => {
+                                        scored.push(e);
+                                    }
+                                    false => {
+                                        // Failure! return nothing.
+                                        return Vec::default();
+                                    }
+                                }
+                            } else {
+                                // If nothing, we have hit null which means success
+                                return scored;
+                            }
+                        }
+                    }
+                    scored
                 };
+
+                // check to see which tiles are 1 away from null (on an edge)
+                // do this by seeing if a full tile minus 1x 1y is *not* a `GameBoard` spot board. This only gets one side,
+                // but that's fine - because this "side" is necessary for all possible combinations and will not be exlucded by checking all 4 directions,
+                // we don't need to check for border tiles on the other two sides, just one. That makes it easy to just work in one direction too.
+                let border_tiles = |direction: Vec2| -> Vec<Entity> {
+                    full_tiles
+                        .iter()
+                        .filter_map(|(e, t)| {
+                            // Get the current posiion of the tile currently
+                            let cur = t.board_position();
+                            // map all board positions into a vec for easier comparison (this is probs slow lol)
+                            // the decision to go negative here is arbitrary (but it will make the bigger part of this code use positive numbers which is cool)
+                            let positions: Vec<Vec2> =
+                                board.iter().map(|(_, t, _)| t.board_position()).collect();
+                            // if the position is not contained in the board, this is an edge
+                            if !positions.contains(&(cur - direction)) {
+                                // left border
+                                Some(e)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect()
+                };
+
+                // get scoring lines from border tiles
+                match direction {
+                    ScoreDirection::Vertical => border_tiles(Vec2::Y).iter().for_each(|entity| {
+                        scoring_tiles.append(&mut score_line_recursive(*entity, Vec2::Y));
+                    }),
+                    ScoreDirection::Horizontal => border_tiles(Vec2::X).iter().for_each(|entity| {
+                        scoring_tiles.append(&mut score_line_recursive(*entity, Vec2::X));
+                    }),
+                    ScoreDirection::Both => {
+                        border_tiles(Vec2::Y).iter().for_each(|entity| {
+                            scoring_tiles.append(&mut score_line_recursive(*entity, Vec2::Y));
+                        });
+                        border_tiles(Vec2::X).iter().for_each(|entity| {
+                            scoring_tiles.append(&mut score_line_recursive(*entity, Vec2::X));
+                        })
+                    }
+                }
             }
         }
-        if scored {
-            scoring_tiles.extend_from_slice(&possible_tiles);
+
+        // ensure scoring tiles does not contain duplicates
+        scoring_tiles.sort();
+        scoring_tiles.dedup();
+
+        for e in scoring_tiles {
+            // remove all states from scoring tiles manually
+            cmd.entity(e)
+                .remove::<tile_styles::Invalid>()
+                .remove::<tile_styles::Hover>()
+                .remove::<tile_states::Full>()
+                .remove::<Color>()
+                .insert(tile_states::Empty)
+                .insert(tile_styles::None);
+            // spawn a scoring block
+            let mut transform = transforms
+                .get(e)
+                .expect("Could not get transform with this entity")
+                .clone();
+            transform.translation.z = 2f32;
+            cmd.spawn_bundle((
+                Tile,
+                GlobalTransform::from(transform.clone()),
+                transform.clone(),
+                tile_states::Scored,
+                Timer::new(Duration::from_millis(1000), false),
+            ));
+            *score += 1;
         }
-    });
-
-    // ensure scoring tiles does not contain duplicates
-    scoring_tiles.sort();
-    scoring_tiles.dedup();
-
-    for e in scoring_tiles {
-        // remove all states from scoring tiles manually
-        cmd.entity(e)
-            .remove::<tile_styles::Invalid>()
-            .remove::<tile_styles::Hover>()
-            .remove::<tile_states::Full>()
-            .remove::<Color>()
-            .insert(tile_states::Empty)
-            .insert(tile_styles::None);
-        // spawn a scoring block
-        let mut transform = transforms
-            .get(e)
-            .expect("Could not get transform with this entity")
-            .clone();
-        transform.translation.z = 2f32;
-        cmd.spawn_bundle((
-            Tile,
-            GlobalTransform::from(transform.clone()),
-            transform.clone(),
-            tile_states::Scored,
-            Timer::new(Duration::from_millis(1000), false),
-        ));
-        *score += 1;
     }
 }
 
@@ -233,17 +329,18 @@ fn process_events_system(
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
     mut state: ResMut<State<GameState>>,
     mut step: ResMut<Step>,
+    position_mode: Res<ActivePositionMode>,
     score: ResMut<Score>,
     settings_handle: Res<Handle<SettingsAsset>>,
     tiles: QuerySet<(
         Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
         Query<Entity, With<GameBoard>>,
-        Query<(Entity, &Pattern), With<ActiveEntity>>,
     )>,
+    mut active: Query<(Entity, &mut Transform, &Pattern), With<ActiveEntity>>,
     pattern_assets: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
 ) {
-    let (hover, _board, active_pattern) = (tiles.q0(), tiles.q1(), tiles.q2());
+    let (hover, _board) = (tiles.q0(), tiles.q1());
     let mut send_events = vec![];
     for event in events.drain() {
         match event {
@@ -251,10 +348,22 @@ fn process_events_system(
                 pattern,
                 unswappable,
             } => {
-                // Set the active pattern to the newly provided pattern
-                active_pattern.for_each(|(e, _)| cmd.entity(e).despawn_recursive());
+                // create the transform for our new active (if in keyboard mode)
+                let active_transform = active
+                    .single_mut()
+                    .map(|(_, t, _)| *t)
+                    .unwrap_or(Transform::from_xyz(0f32, 0f32, 7f32));
 
-                let transform = Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32);
+                // determine the next position
+                let transform = match *position_mode {
+                    ActivePositionMode::Keyboard => active_transform,
+                    ActivePositionMode::Mouse => {
+                        Transform::from_xyz(cursor.global.x, cursor.global.y, 7f32)
+                    }
+                };
+
+                // remove all old actives to prepare to add a new one
+                active.for_each_mut(|(e, _, _)| cmd.entity(e).despawn_recursive());
 
                 if let GameState::Main { mode, map: _map } = state.current() {
                     let mode = mode;
@@ -292,9 +401,9 @@ fn process_events_system(
             }
             GameEvent::CommitActive { loss_on_failure } => {
                 // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
-                let (actives, color) = active_pattern
-                    .single()
-                    .map(|(_, pattern)| (pattern.blocks.len(), pattern.color))
+                let (actives, color) = active
+                    .single_mut()
+                    .map(|(_, _, pattern)| (pattern.blocks.len(), pattern.color))
                     .unwrap_or((0, Color::WHITE));
 
                 if hover.iter().count() == actives {

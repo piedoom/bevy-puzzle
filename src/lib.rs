@@ -24,6 +24,24 @@ pub mod prelude {
 
 use prelude::*;
 
+/*
+#[wasm_bindgen]
+pub fn run() {
+    let mut app = App::build();
+    app.add_plugins(DefaultPlugins);
+    // when building for Web, use WebGL2 rendering
+    #[cfg(target_arch = "wasm32")]
+    app.add_plugin(bevy_webgl2::WebGL2Plugin);
+    // TODO: add all your other stuff to `app` as usual
+    app.insert_resource(ClearColor(Color::rgb(0.0, 0.02, 0.05)))
+        .add_plugins(DefaultPlugins)
+        .add_plugins(FullPlugins)
+        .add_plugin(EguiPlugin)
+        .add_plugin(ui::UiPlugin);
+    app.run();
+}
+*/
+
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PreloadingAssets(pub Vec<HandleUntyped>);
 
