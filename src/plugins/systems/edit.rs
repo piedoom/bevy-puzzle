@@ -1,10 +1,19 @@
 //! Systems related to editing modes and levels
 
+use std::{
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
+
 use bevy::{prelude::*, render::camera::Camera};
 
 use crate::prelude::*;
 
-use super::input::active_piece_position_system;
+use super::{
+    core::{destroy_map_system, reset_game_system},
+    input::active_piece_position_system,
+};
 
 pub struct EditPlugin;
 impl Plugin for EditPlugin {
@@ -19,6 +28,12 @@ impl Plugin for EditPlugin {
                     .with_system(active_piece_position_system.system())
                     .with_system(process_events_system.system())
                     .with_system(edit_input_system.system()),
+            )
+            .add_system_set(
+                SystemSet::on_exit(GameState::edit())
+                    .with_system(destroy_map_system.system())
+                    .with_system(reset_game_system.system())
+                    .with_system(edit_cleanup_system.system()),
             );
     }
 }
@@ -89,18 +104,18 @@ fn process_events_system(
     mut cmd: Commands,
     mut events: EventReader<EditEvent>,
     preview: Query<(Entity, &GlobalTransform), With<PreviewTile>>,
-    board: Query<&GlobalTransform, With<GameBoard>>,
+    board: Query<(Entity, &GlobalTransform), With<GameBoard>>,
 ) {
     for event in events.iter() {
         match event {
-            EditEvent::Place => {
+            EditEvent::PlaceActive => {
                 preview
                     .single()
                     .map(|(e, t)| {
                         // ensure there is not already a tile here in the gameboard
                         if board
                             .iter()
-                            .find(|t2| t2.translation.round() == t.translation.round())
+                            .find(|(_, t2)| t2.translation.round() == t.translation.round())
                             .is_none()
                         {
                             cmd.entity(e).remove::<PreviewTile>().insert(GameBoard);
@@ -108,18 +123,58 @@ fn process_events_system(
                     })
                     .ok();
             }
+            EditEvent::Clear(pos) => {
+                board
+                    .iter()
+                    .filter(|(_, t)| t.translation.truncate() == pos.round())
+                    .for_each(|(e, _)| cmd.entity(e).despawn_recursive());
+            }
+            EditEvent::SaveMap { path, name } => {
+                // assemble map into a vec
+                let pattern: Vec<(isize, isize)> = board
+                    .iter()
+                    .map(|(_, t)| {
+                        (
+                            t.translation.x.round() as isize,
+                            t.translation.y.round() as isize,
+                        )
+                    })
+                    .collect();
+                // save
+                let data = Map {
+                    name: name.clone(),
+                    pattern,
+                };
+                let serialized = ron::to_string(&data).unwrap();
+                let mut file = File::create(format!("assets/maps/{}.map", path.display())).unwrap();
+                writeln!(file, "{}", serialized).unwrap();
+            }
         }
     }
 }
 
-fn edit_input_system(mut events: EventWriter<EditEvent>, input: Res<Input<MouseButton>>) {
+fn edit_input_system(
+    mut events: EventWriter<EditEvent>,
+    input: Res<Input<MouseButton>>,
+    cursor: Res<CursorPosition>,
+) {
     if input.pressed(MouseButton::Left) {
-        events.send(EditEvent::Place);
+        events.send(EditEvent::PlaceActive);
+    }
+
+    if input.pressed(MouseButton::Right) {
+        events.send(EditEvent::Clear(cursor.global));
     }
 }
 
+fn edit_cleanup_system(mut cmd: Commands, active: Query<Entity, With<ActiveEntity>>) {
+    // do anything specific to cleaning up the edit mode here
+}
+
 pub enum EditEvent {
-    Place,
+    PlaceActive,
+    Clear(Vec2),
+    SaveMap { name: String, path: PathBuf },
 }
 
 /// Tile to be cleaned up at some point

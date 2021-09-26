@@ -3,6 +3,9 @@
 use crate::GameState;
 use bevy::prelude::*;
 
+use self::edit::EditUiPlugin;
+
+mod edit;
 /// Systems that need to run during the [`crate::GameState::Main`] state
 mod game;
 /// Systems that need to run during the [`crate::GameState::Menu`] state
@@ -33,6 +36,7 @@ impl Plugin for UiPlugin {
                 SystemSet::on_update(GameState::pause())
                     .with_system(ui_pause_menu_system.system())
                     .label("pause"),
-            );
+            )
+            .add_plugin(EditUiPlugin);
     }
 }

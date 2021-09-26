@@ -12,6 +12,8 @@ pub use systems::{
     style::StylePlugin,
 };
 
+pub(crate) use systems::edit::EditEvent;
+
 pub struct FullPlugins;
 
 impl PluginGroup for FullPlugins {

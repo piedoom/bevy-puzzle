@@ -8,7 +8,7 @@ use bevy_egui::egui::{self, Pos2};
 pub struct Map {
     pub name: String,
     /// The pattern
-    pub pattern: Vec<(usize, usize)>,
+    pub pattern: Vec<(isize, isize)>,
 }
 
 impl std::fmt::Display for Map {
