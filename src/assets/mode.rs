@@ -25,6 +25,12 @@ pub struct GameMode {
     pub scorer: Scorer,
 }
 
+impl std::fmt::Display for GameMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.name)
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, Debug, Clone, Hash)]
 pub enum Scorer {
     /// Scores when a square with a diameter of `n` is completely filled. Because some piece are

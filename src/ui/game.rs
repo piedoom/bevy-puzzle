@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::render::camera::Camera;
+use bevy::render::camera::{Camera, OrthographicProjection};
 use bevy_egui::egui::{self, *};
 use bevy_egui::EguiContext;
 
@@ -19,49 +19,10 @@ impl Default for Bounds {
     }
 }
 
-impl Bounds {
-    pub fn screen(
-        &self,
-        camera: &Camera,
-        windows: &Windows,
-        camera_transform: &GlobalTransform,
-    ) -> egui::Rect {
-        let min_world = self.world.left_bottom();
-        let max_world = self.world.right_top();
-
-        let min_raw = camera
-            .world_to_screen(
-                &windows,
-                camera_transform,
-                Vec3::new(min_world.x, min_world.y, 0f32),
-            )
-            // TODO: need to account for this lol
-            .unwrap();
-
-        let max_raw = camera
-            .world_to_screen(
-                &windows,
-                camera_transform,
-                Vec3::new(max_world.x, max_world.y, 0f32),
-            )
-            .unwrap();
-
-        let height = windows
-            .get_primary()
-            .map(|w| w.height())
-            .unwrap_or_default();
-
-        let min = Pos2::new(min_raw.x, height - min_raw.y);
-        let max = Pos2::new(max_raw.x, height - max_raw.y);
-
-        egui::Rect { min, max }
-    }
-}
-
 /// Draw the UI for our main game state
 pub(crate) fn ui_main_system(
     windows: Res<Windows>,
-    camera: Query<(&Camera, &GlobalTransform)>,
+    camera: Query<(&Camera, &OrthographicProjection, &GlobalTransform)>,
     ctx: ResMut<EguiContext>,
     score: Res<Score>,
     active: Query<(Entity, &PlacementTimer, &GlobalTransform), With<ActiveEntity>>,
@@ -70,10 +31,11 @@ pub(crate) fn ui_main_system(
     patterns: Res<Assets<Pattern>>,
     state: Res<State<GameState>>,
     bounds: Res<Bounds>,
+    modes: Res<Assets<GameMode>>,
 ) {
     // get current mode
     if let GameState::Main { mode, map: _ } = state.current() {
-        if let Ok((camera, camera_transform)) = camera.single() {
+        if let Ok((camera, projection, camera_transform)) = camera.single() {
             // cursor
             // get active position
             active
@@ -116,7 +78,32 @@ pub(crate) fn ui_main_system(
 
             // Score and other ui stuff
             // Get the extents with on-screen pixel values so we can add UI stuff aligned to the gameboard.
-            let extents = bounds.screen(&camera, &windows, &camera_transform);
+            let extents = {
+                let min_world = bounds.world.left_bottom();
+                let max_world = bounds.world.right_top();
+
+                // // get the min and max in pixels. We use "raw" because in egui the y axis has to be flipped, which we do later on.
+                let trans = camera_transform.translation;
+                // offset from camera in game units that the target position is at
+                let pos_to_pixels = |pos: Pos2| -> Vec3 {
+                    let scalar = 1f32 / projection.scale;
+                    let unit_offset = trans - Vec3::new(pos.x, pos.y, 0f32);
+                    unit_offset * scalar
+                };
+
+                let min_raw = pos_to_pixels(min_world);
+                let max_raw = pos_to_pixels(max_world);
+
+                let height = windows
+                    .get_primary()
+                    .map(|w| w.height())
+                    .unwrap_or_default();
+
+                let min = Pos2::new(min_raw.x, height - min_raw.y);
+                let max = Pos2::new(max_raw.x, height - max_raw.y);
+
+                egui::Rect { min, max }
+            };
 
             egui::containers::Area::new("score")
                 .fixed_pos(extents.left_top() + egui::Vec2::new(0f32, -32f32))
@@ -125,6 +112,7 @@ pub(crate) fn ui_main_system(
                 });
 
             // Side panel info
+            let mode = modes.get(mode.clone()).unwrap();
             egui::containers::Area::new("panel")
                 .fixed_pos(extents.right_top() + egui::Vec2::new(32f32, 0f32)) // + egui::Vec2::new(100f32, 0f32))
                 .show(ctx.ctx(), |ui| {

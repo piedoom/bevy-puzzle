@@ -62,8 +62,10 @@ fn rotate_active_system(
     mut active: Query<&mut Transform, With<ActiveEntity>>,
     state: Res<State<GameState>>,
     keyboard: Res<Input<KeyCode>>,
+    modes: Res<Assets<GameMode>>,
 ) {
     if let GameState::Main { mode, map: _map } = state.current() {
+        let mode = modes.get(mode.clone()).unwrap();
         if mode.can_rotate {
             let right_pressed = keyboard.just_pressed(KeyCode::D);
             let left_pressed = keyboard.just_pressed(KeyCode::A);
@@ -168,13 +170,15 @@ fn update_hovered_system(
             // compare and highlight tiles on the gameboard
             let coords: Vec<Vec2> = children
                 .get(entity)
-                .unwrap()
-                .iter()
-                .filter_map(|active_entity| match transforms.get(*active_entity) {
-                    Ok(transform) => Some(transform.board_position()),
-                    Err(_) => None,
+                .map(|r| {
+                    r.iter()
+                        .filter_map(|active_entity| match transforms.get(*active_entity) {
+                            Ok(transform) => Some(transform.board_position()),
+                            Err(_) => None,
+                        })
+                        .collect()
                 })
-                .collect();
+                .unwrap_or_default();
 
             // add hover to blank tiles that match the active piece transform
             blank_tiles.for_each(|(e, t)| {

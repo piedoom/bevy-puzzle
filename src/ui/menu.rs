@@ -2,6 +2,8 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use bevy_egui::{egui::*, *};
 
+use super::widgets::SelectAssetWidget;
+
 /// Resource that tells us if the game is paused or not
 pub type Paused = bool;
 
@@ -9,16 +11,18 @@ pub type Paused = bool;
 pub struct MenuState {
     pub mode: Option<Handle<GameMode>>,
     pub map: Option<Handle<Map>>,
+    pub theme: Option<Theme>,
 }
 
 pub(crate) fn ui_menu_system(
     mut state: ResMut<State<GameState>>,
     mut menu_state: ResMut<MenuState>,
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
+    mut maps: ResMut<Assets<Map>>,
     ctx: ResMut<EguiContext>,
     settings_handle: Res<Handle<SettingsAsset>>,
     modes: Res<Assets<GameMode>>,
-    maps: Res<Assets<Map>>,
+    themes: Res<Themes>,
 ) {
     egui::Area::new("menu")
         .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
@@ -36,49 +40,45 @@ pub(crate) fn ui_menu_system(
                 ui.text_edit_singleline(&mut settings.active_name);
             });
 
-            // get current mode and map
-            let mode = modes.get(menu_state.mode.clone().unwrap_or_default());
-            let map = maps.get(menu_state.map.clone().unwrap_or_default());
             ui.vertical(|ui| {
-                egui::ComboBox::from_label("Game mode")
+                ui.add(SelectAssetWidget::<GameMode> {
+                    name: "Mode selection",
+                    selection: &mut menu_state.mode,
+                    assets: &modes,
+                });
+                ui.add(SelectAssetWidget::<Map> {
+                    name: "Map selection",
+                    selection: &mut menu_state.map,
+                    assets: &maps,
+                });
+
+                // themes
+                // set the default theme if none
+                if let None = &menu_state.theme {
+                    menu_state.theme = (*themes).iter().find(|x| x.name == "default").cloned();
+                }
+                egui::ComboBox::from_label("Theme selection")
                     .selected_text(
-                        &mode
-                            .map(|x| &x.name)
-                            .unwrap_or(&String::from("None selected")),
+                        menu_state
+                            .theme
+                            .as_ref()
+                            .map(|t| &t.name)
+                            .unwrap_or(&"None selected".to_string()),
                     )
                     .show_ui(ui, |ui| {
-                        for (id, mode) in modes.iter() {
-                            let select_handle = modes.get_handle(id);
+                        themes.iter().for_each(|theme| {
                             if ui
                                 .selectable_value(
-                                    &mut menu_state.mode,
-                                    Some(select_handle.clone()),
-                                    &mode.name,
+                                    &mut menu_state.theme,
+                                    Some(theme.clone()),
+                                    format!("{}", theme.name),
                                 )
                                 .clicked()
                             {
-                                menu_state.mode = Some(select_handle.clone());
+                                menu_state.theme = Some(theme.clone());
                             }
-                        }
-                    });
-
-                egui::ComboBox::from_label("Map")
-                    .selected_text(&map.map(|x| &x.name).unwrap_or(&"None selected".to_string()))
-                    .show_ui(ui, |ui| {
-                        for (id, map) in maps.iter() {
-                            let select_handle = maps.get_handle(id);
-                            if ui
-                                .selectable_value(
-                                    &mut menu_state.map,
-                                    Some(select_handle.clone()),
-                                    &map.name,
-                                )
-                                .clicked()
-                            {
-                                menu_state.map = Some(select_handle.clone());
-                            }
-                        }
-                    });
+                        });
+                    })
             });
 
             // Start game button
@@ -86,8 +86,8 @@ pub(crate) fn ui_menu_system(
                 if ui.button("Start").clicked() {
                     state
                         .set(GameState::Main {
-                            mode: mode.unwrap().clone(),
-                            map: map.unwrap().clone(),
+                            mode: menu_state.mode.as_ref().unwrap().clone(),
+                            map: menu_state.map.as_ref().unwrap().clone(),
                         })
                         .ok();
                 }
@@ -105,8 +105,16 @@ pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: Res
         .collapsible(false)
         .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx.ctx(), |ui| {
-            if ui.button("Exit").clicked() {
-                state.replace(GameState::menu()).ok();
+            // if we got here from edit mode, show a special exit button
+            if let Some(GameState::Edit) = state.inactives().first() {
+                if ui.button("Exit").clicked() {
+                    // todo: keep board
+                    state.replace(GameState::Edit).ok();
+                }
+            } else {
+                if ui.button("Exit").clicked() {
+                    state.replace(GameState::Menu).ok();
+                }
             }
             if ui.button("Resume").clicked() {
                 state.pop().ok();

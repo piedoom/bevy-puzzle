@@ -1,10 +1,6 @@
 //! Systems related to editing modes and levels
 
-use std::{
-    fs::File,
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, io::Write, path::PathBuf};
 
 use bevy::{prelude::*, render::camera::Camera};
 
@@ -103,6 +99,9 @@ fn preview_system(
 fn process_events_system(
     mut cmd: Commands,
     mut events: EventReader<EditEvent>,
+    mut state: ResMut<State<GameState>>,
+    mut maps: ResMut<Assets<Map>>,
+    modes: Res<Assets<GameMode>>,
     preview: Query<(Entity, &GlobalTransform), With<PreviewTile>>,
     board: Query<(Entity, &GlobalTransform), With<GameBoard>>,
 ) {
@@ -129,17 +128,9 @@ fn process_events_system(
                     .filter(|(_, t)| t.translation.truncate() == pos.round())
                     .for_each(|(e, _)| cmd.entity(e).despawn_recursive());
             }
-            EditEvent::SaveMap { path, name } => {
+            EditEvent::SaveCurrentMap { path, name } => {
                 // assemble map into a vec
-                let pattern: Vec<(isize, isize)> = board
-                    .iter()
-                    .map(|(_, t)| {
-                        (
-                            t.translation.x.round() as isize,
-                            t.translation.y.round() as isize,
-                        )
-                    })
-                    .collect();
+                let pattern: Vec<(isize, isize)> = current_tiles_to_vec(&board);
                 // save
                 let data = Map {
                     name: name.clone(),
@@ -149,8 +140,34 @@ fn process_events_system(
                 let mut file = File::create(format!("assets/maps/{}.map", path.display())).unwrap();
                 writeln!(file, "{}", serialized).unwrap();
             }
+            EditEvent::RunCurrentMap { mode } => {
+                let map = Map {
+                    pattern: current_tiles_to_vec(&board),
+                    ..Default::default()
+                };
+                state
+                    .push(GameState::Main {
+                        mode: mode.clone(),
+                        map: maps.add(map),
+                    })
+                    .ok();
+            }
         }
     }
+}
+
+fn current_tiles_to_vec(
+    board: &Query<(Entity, &GlobalTransform), With<GameBoard>>,
+) -> Vec<(isize, isize)> {
+    board
+        .iter()
+        .map(|(_, t)| {
+            (
+                t.translation.x.round() as isize,
+                t.translation.y.round() as isize,
+            )
+        })
+        .collect()
 }
 
 fn edit_input_system(
@@ -174,7 +191,8 @@ fn edit_cleanup_system(mut cmd: Commands, active: Query<Entity, With<ActiveEntit
 pub enum EditEvent {
     PlaceActive,
     Clear(Vec2),
-    SaveMap { name: String, path: PathBuf },
+    SaveCurrentMap { name: String, path: PathBuf },
+    RunCurrentMap { mode: Handle<GameMode> },
 }
 
 /// Tile to be cleaned up at some point

@@ -15,7 +15,7 @@ pub struct CorePuzzlePlugin;
 
 impl Plugin for CorePuzzlePlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_state(GameState::load())
+        app.add_state(GameState::default())
             .init_resource::<Score>()
             .init_resource::<ActiveEntity>()
             .init_resource::<Step>()
@@ -55,10 +55,12 @@ fn scorer_system(
     full_tiles: Query<(Entity, &Transform), (With<tile_states::Full>, With<GameBoard>)>,
     board: Query<(Entity, &Transform, Option<&tile_states::Full>), With<GameBoard>>,
     transforms: Query<&Transform>,
+    modes: Res<Assets<GameMode>>,
 ) {
     if let GameState::Main { map: _, mode } = state.current() {
         // Important little vec that keeps track of all the scoring tiles that will be added at the end of the system loop
         let mut scoring_tiles = vec![];
+        let mode = modes.get(mode.clone()).unwrap();
 
         // do the scoring
         match &mode.scorer {
@@ -216,6 +218,8 @@ fn setup_system(
     mut hold: ResMut<Hold>,
     mut next: ResMut<NextUp>,
     mut bounds: ResMut<Bounds>,
+    modes: Res<Assets<GameMode>>,
+    maps: Res<Assets<Map>>,
     state: Res<State<GameState>>,
     settings: Res<Assets<SettingsAsset>>,
     settings_handle: Res<Handle<SettingsAsset>>,
@@ -225,6 +229,11 @@ fn setup_system(
     let (_board, cameras) = (queries.q0(), queries.q1());
     let settings = settings.get(settings_handle.clone()).unwrap();
     if let GameState::Main { mode, map } = state.current() {
+        let mode = modes.get(mode.clone()).unwrap();
+        let map = maps.get(map.clone()).unwrap();
+        if mode.patterns.len() == 0 {
+            panic!("Current GameMode provides no patterns")
+        }
         // calculate screen position from already calculated world bounds
         let rect = map.calculate_rect();
         // adjust to get corners of tiles instead of center
@@ -329,6 +338,8 @@ fn process_events_system(
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
     mut state: ResMut<State<GameState>>,
     mut step: ResMut<Step>,
+    mut active: Query<(Entity, &mut Transform, &Pattern), With<ActiveEntity>>,
+    modes: Res<Assets<GameMode>>,
     position_mode: Res<ActivePositionMode>,
     score: ResMut<Score>,
     settings_handle: Res<Handle<SettingsAsset>>,
@@ -336,7 +347,7 @@ fn process_events_system(
         Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
         Query<Entity, With<GameBoard>>,
     )>,
-    mut active: Query<(Entity, &mut Transform, &Pattern), With<ActiveEntity>>,
+
     pattern_assets: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
 ) {
@@ -366,7 +377,7 @@ fn process_events_system(
                 active.for_each_mut(|(e, _, _)| cmd.entity(e).despawn_recursive());
 
                 if let GameState::Main { mode, map: _map } = state.current() {
-                    let mode = mode;
+                    let mode = modes.get(mode.clone()).unwrap();
                     let timer = step.create_timer(mode);
 
                     // Create the new active entity

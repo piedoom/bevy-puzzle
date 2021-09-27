@@ -7,36 +7,46 @@ use bevy::{
 #[derive(
     serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Default, Debug, Clone, Eq, Hash,
 )]
-#[uuid = "1df82c01-9c71-ffff-adc4-78c5822268fb"]
-pub struct Theme {
+#[uuid = "1dffade1-9c71-ffff-adc4-78c5822268fb"]
+pub struct ThemeDescription {
     pub name: String,
-    /// Skipped as this is attained by them being in the same folder
-    #[serde(skip)]
-    pub colors: ThemeColors,
-    #[serde(skip)]
-    pub states: ThemeStates,
-}
-#[derive(PartialEq, Default, Debug, Clone, Eq, Hash)]
-pub struct ThemeColors {
-    pub red: Handle<Texture>,
-    pub orange: Handle<Texture>,
-    pub yellow: Handle<Texture>,
-    pub lime: Handle<Texture>,
-    pub green: Handle<Texture>,
-    pub purple: Handle<Texture>,
-}
-#[derive(PartialEq, Default, Debug, Clone, Eq, Hash)]
-pub struct ThemeStates {
-    pub hover: Handle<Texture>,
-    pub invalid: Handle<Texture>,
-    pub empty: Handle<Texture>,
-    pub scored: Handle<Texture>,
+    pub sfx: ThemeSfx<String>,
+    pub sprites: ThemeSprites<String>,
 }
 
-impl Theme {
-    pub fn default_name() -> &'static str {
-        "default"
-    }
+/// Because we cannot yet reference assets in other assets, we are using a [`ThemeDescription`] to tell us what assets to load,
+/// and then building that into a [`Theme`] itself. Note that this is not an asset, but a resource - but we are using it like an asset.
+#[derive(PartialEq, Clone)]
+pub struct Theme {
+    pub name: String,
+    pub sfx: ThemeSfx<Handle<AudioSource>>,
+    pub sprites: ThemeSprites<(Handle<Texture>, Handle<ColorMaterial>)>,
+}
+
+pub type Themes = Vec<Theme>;
+
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Default, Debug, Clone, Eq, Hash)]
+pub struct ThemeSprites<T> {
+    pub red: T,
+    pub orange: T,
+    pub yellow: T,
+    pub green: T,
+    pub light_blue: T,
+    pub lime: T,
+    pub blue: T,
+    pub purple: T,
+    pub scored: T,
+    pub empty: T,
+    pub hover: T,
+    pub invalid: T,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Default, Debug, Clone, Eq, Hash)]
+pub struct ThemeSfx<T> {
+    pub place: T,
+    pub select: T,
+    pub swap: T,
+    pub grip: T,
 }
 
 #[derive(Default)]
@@ -49,7 +59,7 @@ impl AssetLoader for ThemeLoader {
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
         Box::pin(async move {
-            let asset = ron::de::from_bytes::<Theme>(bytes)?;
+            let asset = ron::de::from_bytes::<ThemeDescription>(bytes)?;
             load_context.set_default_asset(LoadedAsset::new(asset));
             Ok(())
         })

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::plugins::EditEvent;
+use crate::{plugins::EditEvent, prelude::*};
 use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, Align2},
@@ -8,6 +8,8 @@ use bevy_egui::{
 };
 
 use crate::GameState;
+
+use super::widgets::SelectAssetWidget;
 
 #[derive(Default)]
 pub struct EditUiPlugin;
@@ -23,12 +25,13 @@ impl Plugin for EditUiPlugin {
 #[derive(Default)]
 struct UiState {
     map_name: String,
+    mode: Option<Handle<GameMode>>,
 }
 
 fn edit_menu_system(
-    mut state: ResMut<State<GameState>>,
     mut events: EventWriter<EditEvent>,
     mut ui_state: ResMut<UiState>,
+    modes: Res<Assets<GameMode>>,
     ctx: ResMut<EguiContext>,
 ) {
     egui::Area::new("edit_menu")
@@ -36,10 +39,22 @@ fn edit_menu_system(
         .show(ctx.ctx(), |ui| {
             ui.text_edit_singleline(&mut ui_state.map_name);
             if ui.button("Save Map").clicked() {
-                events.send(EditEvent::SaveMap {
+                events.send(EditEvent::SaveCurrentMap {
                     name: ui_state.map_name.clone(),
                     path: PathBuf::from(ui_state.map_name.clone()),
                 })
+            }
+
+            ui.add(SelectAssetWidget::<GameMode> {
+                name: "Mode selection",
+                selection: &mut ui_state.mode,
+                assets: &modes,
+            });
+
+            if ui.button("Test").clicked() {
+                events.send(EditEvent::RunCurrentMap {
+                    mode: ui_state.mode.as_ref().unwrap().clone(),
+                });
             }
         });
 }

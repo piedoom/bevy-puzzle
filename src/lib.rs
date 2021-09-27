@@ -45,11 +45,16 @@ pub fn run() {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PreloadingAssets(pub Vec<HandleUntyped>);
 
-#[derive(Debug, Clone, Eq, Hash)]
+#[derive(Debug, Clone, Eq, Hash, Default)]
 pub enum GameState {
+    #[default]
+    PreLoad,
     Load,
     Menu,
-    Main { mode: GameMode, map: Map },
+    Main {
+        mode: Handle<GameMode>,
+        map: Handle<Map>,
+    },
     Pause,
     Edit,
 }
@@ -61,6 +66,11 @@ impl PartialEq for GameState {
 }
 
 impl GameState {
+    #[inline(always)]
+    pub fn pre_load() -> Self {
+        Self::PreLoad
+    }
+
     #[inline(always)]
     pub fn load() -> Self {
         Self::Load

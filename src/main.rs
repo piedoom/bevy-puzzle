@@ -5,7 +5,7 @@ fn main() {
     App::build()
         .insert_resource(WindowDescriptor {
             cursor_visible: true,
-            cursor_locked: true,
+            cursor_locked: false,
             width: 1920f32,
             height: 1080f32,
             ..Default::default()

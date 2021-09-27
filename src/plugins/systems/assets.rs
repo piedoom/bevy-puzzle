@@ -17,13 +17,25 @@ impl Plugin for AssetPlugin {
         app.init_resource::<TileResources>()
             .init_resource::<PreloadingAssets>()
             .init_resource::<Handle<SettingsAsset>>()
+            .init_resource::<Themes>()
+            .add_asset::<ThemeDescription>()
             .add_asset::<Pattern>()
             .add_asset::<GameMode>()
             .add_asset::<Map>()
             .add_plugin(RonAssetPlugin::<GameMode>::new(&["mode"]))
             .add_plugin(RonAssetPlugin::<Map>::new(&["map"]))
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
+            .add_plugin(RonAssetPlugin::<ThemeDescription>::new(&["theme"]))
             .init_asset_loader::<PatternLoader>()
+            .add_system_set(
+                // Load setup
+                SystemSet::on_enter(GameState::pre_load())
+                    .with_system(init_pre_load_system.system()),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::pre_load())
+                    .with_system(pre_load_assets_loaded_transition_system.system()),
+            )
             .add_system_set(
                 // Load setup
                 SystemSet::on_enter(GameState::load()).with_system(init_load_system.system()),
@@ -35,17 +47,41 @@ impl Plugin for AssetPlugin {
     }
 }
 
+// Loads prefab-like assets that need to be loaded before our main stuff
+fn init_pre_load_system(mut loading: ResMut<PreloadingAssets>, assets: Res<AssetServer>) {
+    let theme_handles = &mut assets.load_folder("themes").expect("Could not load modes");
+    loading.0.append(theme_handles);
+}
+
+fn pre_load_assets_loaded_transition_system(
+    mut state: ResMut<State<GameState>>,
+    loading: Res<PreloadingAssets>,
+    assets: Res<AssetServer>,
+) {
+    if loading
+        .0
+        .iter()
+        .filter(|h| assets.get_load_state(*h) == LoadState::Loading)
+        .count()
+        == 0
+    {
+        // Transition states to the menu
+        state.set(GameState::Load).ok();
+    }
+}
+
 fn init_load_system(
     mut state: ResMut<State<GameState>>,
     mut settings_handle: ResMut<Handle<SettingsAsset>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut style: ResMut<TileResources>,
     mut loading: ResMut<PreloadingAssets>,
+    mut themes: ResMut<Themes>,
     assets: Res<AssetServer>,
+    theme_assets: Res<Assets<ThemeDescription>>,
 ) {
     // load our settings file
     *settings_handle = assets.load("settings.rfg");
-
     loading.0.push(settings_handle.clone_untyped());
 
     // load all block patterns
@@ -53,6 +89,49 @@ fn init_load_system(
         .load_folder("blocks")
         .expect("Could not load patterns");
     loading.0.append(patterns);
+
+    let mut theme_from_description = |desc: &ThemeDescription| -> Theme {
+        let load_audio = |path: &String, loading: &mut PreloadingAssets| {
+            let handle = assets.load(format!("sounds/{}.ogg", path).as_str());
+            loading.0.push(handle.clone_untyped());
+            handle
+        };
+        let mut load_sprite = |path: &String, loading: &mut PreloadingAssets| {
+            let handle = assets.load(format!("sprites/{}.png", path).as_str());
+            loading.0.push(handle.clone_untyped());
+            (handle.clone(), materials.add(handle.clone().into()))
+        };
+
+        Theme {
+            sfx: ThemeSfx {
+                place: load_audio(&desc.sfx.place, &mut loading),
+                select: load_audio(&desc.sfx.select, &mut loading),
+                swap: load_audio(&desc.sfx.swap, &mut loading),
+                grip: load_audio(&desc.sfx.grip, &mut loading),
+            },
+            sprites: ThemeSprites {
+                red: load_sprite(&desc.sprites.red, &mut loading),
+                orange: load_sprite(&desc.sprites.orange, &mut loading),
+                yellow: load_sprite(&desc.sprites.yellow, &mut loading),
+                green: load_sprite(&desc.sprites.green, &mut loading),
+                light_blue: load_sprite(&desc.sprites.light_blue, &mut loading),
+                lime: load_sprite(&desc.sprites.lime, &mut loading),
+                blue: load_sprite(&desc.sprites.blue, &mut loading),
+                purple: load_sprite(&desc.sprites.purple, &mut loading),
+                scored: load_sprite(&desc.sprites.scored, &mut loading),
+                empty: load_sprite(&desc.sprites.empty, &mut loading),
+                hover: load_sprite(&desc.sprites.hover, &mut loading),
+                invalid: load_sprite(&desc.sprites.invalid, &mut loading),
+            },
+            name: desc.name.clone(),
+        }
+    };
+
+    // load the real "Themes" instead of the descriptions. The description is just a bunch of paths. We want to load all the handles and stuff.
+    *themes = theme_assets
+        .iter()
+        .map(|(_, theme)| theme_from_description(theme))
+        .collect();
 
     // load textures
     let mut load_tex = |path: &'static str| {
@@ -69,6 +148,10 @@ fn init_load_system(
         invalid: TileResource::new(load_tex("invalid")),
         scored: TileResource::new(load_tex("scored")),
     };
+
+    // load sounds
+    let sound_handles = &mut assets.load_folder("sounds").expect("Could not load modes");
+    loading.0.append(sound_handles);
 
     // load game modes
     let mode_handles = &mut assets.load_folder("modes").expect("Could not load modes");
@@ -99,7 +182,7 @@ fn assets_loaded_transition_system(
         .count()
         == 0
     {
-        // Transition states to the men
+        // Transition states to the menu
         state.set(GameState::Menu).ok();
     }
 }
