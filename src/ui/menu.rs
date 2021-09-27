@@ -18,7 +18,7 @@ pub(crate) fn ui_menu_system(
     mut state: ResMut<State<GameState>>,
     mut menu_state: ResMut<MenuState>,
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
-    mut maps: ResMut<Assets<Map>>,
+    maps: ResMut<Assets<Map>>,
     ctx: ResMut<EguiContext>,
     settings_handle: Res<Handle<SettingsAsset>>,
     modes: Res<Assets<GameMode>>,
@@ -88,6 +88,7 @@ pub(crate) fn ui_menu_system(
                         .set(GameState::Main {
                             mode: menu_state.mode.as_ref().unwrap().clone(),
                             map: menu_state.map.as_ref().unwrap().clone(),
+                            theme: menu_state.theme.as_ref().unwrap().clone(),
                         })
                         .ok();
                 }

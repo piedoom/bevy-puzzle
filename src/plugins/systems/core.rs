@@ -57,7 +57,7 @@ fn scorer_system(
     transforms: Query<&Transform>,
     modes: Res<Assets<GameMode>>,
 ) {
-    if let GameState::Main { map: _, mode } = state.current() {
+    if let GameState::Main { mode, .. } = state.current() {
         // Important little vec that keeps track of all the scoring tiles that will be added at the end of the system loop
         let mut scoring_tiles = vec![];
         let mode = modes.get(mode.clone()).unwrap();
@@ -228,7 +228,7 @@ fn setup_system(
 ) {
     let (_board, cameras) = (queries.q0(), queries.q1());
     let settings = settings.get(settings_handle.clone()).unwrap();
-    if let GameState::Main { mode, map } = state.current() {
+    if let GameState::Main { mode, map, .. } = state.current() {
         let mode = modes.get(mode.clone()).unwrap();
         let map = maps.get(map.clone()).unwrap();
         if mode.patterns.len() == 0 {
@@ -374,9 +374,12 @@ fn process_events_system(
                 };
 
                 // remove all old actives to prepare to add a new one
-                active.for_each_mut(|(e, _, _)| cmd.entity(e).despawn_recursive());
+                active.for_each_mut(|(e, ..)| cmd.entity(e).despawn_recursive());
 
-                if let GameState::Main { mode, map: _map } = state.current() {
+                if let GameState::Main {
+                    mode, map: _map, ..
+                } = state.current()
+                {
                     let mode = modes.get(mode.clone()).unwrap();
                     let timer = step.create_timer(mode);
 
@@ -414,15 +417,15 @@ fn process_events_system(
                 // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
                 let (actives, color) = active
                     .single_mut()
-                    .map(|(_, _, pattern)| (pattern.blocks.len(), pattern.color))
-                    .unwrap_or((0, Color::WHITE));
+                    .map(|(.., pattern)| (pattern.blocks.len(), pattern.color.clone()))
+                    .unwrap_or((0, Default::default()));
 
                 if hover.iter().count() == actives {
                     // everything is good, commit!
                     hover.for_each(|e| {
                         transition::<tile_states::Empty, tile_states::Full>(&mut cmd, e);
                         transition::<tile_styles::Hover, tile_styles::None>(&mut cmd, e);
-                        cmd.entity(e).insert(color);
+                        cmd.entity(e).insert(color.clone());
                     });
 
                     // This check is needed in case the event is processed after a change that resets our next piece

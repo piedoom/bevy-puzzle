@@ -1,13 +1,6 @@
 mod pattern;
 
-use super::MenuState;
-use crate::prelude::*;
-use bevy::{
-    asset::Asset,
-    ecs::component::Component,
-    prelude::*,
-    reflect::{TypeUuid, Uuid},
-};
+use bevy::{asset::Asset, prelude::*, reflect::TypeUuid};
 use bevy_egui::egui::{self, Widget};
 pub use pattern::*;
 use std::fmt::Display;

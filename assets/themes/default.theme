@@ -14,6 +14,7 @@
         light_blue: "default/light_blue",
         lime: "default/lime",
         blue: "default/blue",
+        indigo: "default/indigo",
         purple: "default/purple",
         scored: "default/scored",
         empty: "default/empty",

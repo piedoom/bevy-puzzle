@@ -54,6 +54,7 @@ pub enum GameState {
     Main {
         mode: Handle<GameMode>,
         map: Handle<Map>,
+        theme: Theme,
     },
     Pause,
     Edit,
@@ -86,6 +87,7 @@ impl GameState {
         Self::Main {
             mode: Default::default(),
             map: Default::default(),
+            theme: Default::default(),
         }
     }
 

@@ -59,10 +59,9 @@ fn animate_active_system(
 
 fn style_blocks_system(
     mut cmd: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut transforms: Query<&mut Transform>,
-    styles: Res<TileResources>,
-    full: Query<(Entity, Option<&Color>), Added<tile_states::Full>>,
+    state: Res<State<GameState>>,
+    full: Query<(Entity, &PatternColor), Added<tile_states::Full>>,
     empty: Query<
         Entity,
         (
@@ -97,7 +96,7 @@ fn style_blocks_system(
         ),
     >,
     uninvalidated: Query<
-        (Entity, Option<&Color>),
+        (Entity, &PatternColor),
         (
             With<tile_states::Full>,
             Added<tile_styles::None>,
@@ -105,62 +104,34 @@ fn style_blocks_system(
         ),
     >,
 ) {
-    full.iter()
-        .chain(uninvalidated.iter())
-        .for_each(|(entity, color)| {
-            style_with_texture(
-                &mut cmd,
-                entity,
-                styles.full.texture.clone(),
-                color.cloned(),
-                &mut materials,
-            );
+    if let GameState::Main { theme, .. } = state.current() {
+        full.iter()
+            .chain(uninvalidated.iter())
+            .for_each(|(entity, color)| {
+                cmd.entity(entity).insert(theme.material_from_color(color));
+                let mut t = transforms.get_mut(entity).unwrap();
+                t.translation.z = 7.0;
+            });
+
+        empty.iter().chain(unhovered.iter()).for_each(|entity| {
+            cmd.entity(entity).insert(theme.materials.empty.clone());
             let mut t = transforms.get_mut(entity).unwrap();
             t.translation.z = 7.0;
         });
-
-    empty.iter().chain(unhovered.iter()).for_each(|entity| {
-        style_with_texture(
-            &mut cmd,
-            entity,
-            styles.empty.texture.clone(),
-            None,
-            &mut materials,
-        );
-        let mut t = transforms.get_mut(entity).unwrap();
-        t.translation.z = 7.0;
-    });
-    scored.for_each(|entity| {
-        style_with_texture(
-            &mut cmd,
-            entity,
-            styles.scored.texture.clone(),
-            None,
-            &mut materials,
-        );
-    });
-    invalid.for_each(|entity| {
-        style_with_texture(
-            &mut cmd,
-            entity,
-            styles.invalid.texture.clone(),
-            None,
-            &mut materials,
-        );
-        let mut t = transforms.get_mut(entity).unwrap();
-        t.translation.z = 8.0;
-    });
-    hovered.for_each(|entity| {
-        style_with_texture(
-            &mut cmd,
-            entity,
-            styles.hover.texture.clone(),
-            None,
-            &mut materials,
-        );
-        let mut t = transforms.get_mut(entity).unwrap();
-        t.translation.z = 8.0;
-    });
+        scored.for_each(|entity| {
+            cmd.entity(entity).insert(theme.materials.scored.clone());
+        });
+        invalid.for_each(|entity| {
+            cmd.entity(entity).insert(theme.materials.invalid.clone());
+            let mut t = transforms.get_mut(entity).unwrap();
+            t.translation.z = 8.0;
+        });
+        hovered.for_each(|entity| {
+            cmd.entity(entity).insert(theme.materials.hover.clone());
+            let mut t = transforms.get_mut(entity).unwrap();
+            t.translation.z = 8.0;
+        });
+    }
 }
 
 pub(crate) fn scored_effect_system(

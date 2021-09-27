@@ -16,11 +16,11 @@ pub struct ThemeDescription {
 
 /// Because we cannot yet reference assets in other assets, we are using a [`ThemeDescription`] to tell us what assets to load,
 /// and then building that into a [`Theme`] itself. Note that this is not an asset, but a resource - but we are using it like an asset.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug, Hash, Eq, Default)]
 pub struct Theme {
     pub name: String,
     pub sfx: ThemeSfx<Handle<AudioSource>>,
-    pub sprites: ThemeSprites<(Handle<Texture>, Handle<ColorMaterial>)>,
+    pub materials: ThemeSprites<Handle<ColorMaterial>>,
 }
 
 pub type Themes = Vec<Theme>;
@@ -34,6 +34,7 @@ pub struct ThemeSprites<T> {
     pub light_blue: T,
     pub lime: T,
     pub blue: T,
+    pub indigo: T,
     pub purple: T,
     pub scored: T,
     pub empty: T,
@@ -67,5 +68,20 @@ impl AssetLoader for ThemeLoader {
 
     fn extensions(&self) -> &[&str] {
         &["block"]
+    }
+}
+impl Theme {
+    pub(crate) fn material_from_color(&self, color: &super::PatternColor) -> Handle<ColorMaterial> {
+        match color {
+            super::PatternColor::Red => self.materials.red.clone(),
+            super::PatternColor::Orange => self.materials.orange.clone(),
+            super::PatternColor::Yellow => self.materials.yellow.clone(),
+            super::PatternColor::Lime => self.materials.lime.clone(),
+            super::PatternColor::Green => self.materials.green.clone(),
+            super::PatternColor::LightBlue => self.materials.light_blue.clone(),
+            super::PatternColor::Blue => self.materials.blue.clone(),
+            super::PatternColor::Indigo => self.materials.indigo.clone(),
+            super::PatternColor::Purple => self.materials.purple.clone(),
+        }
     }
 }

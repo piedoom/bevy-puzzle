@@ -34,7 +34,7 @@ pub(crate) fn ui_main_system(
     modes: Res<Assets<GameMode>>,
 ) {
     // get current mode
-    if let GameState::Main { mode, map: _ } = state.current() {
+    if let GameState::Main { mode, .. } = state.current() {
         if let Ok((camera, projection, camera_transform)) = camera.single() {
             // cursor
             // get active position

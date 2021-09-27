@@ -1,0 +1,24 @@
+(
+    name: "rust",
+    sfx: (
+        place: "default/place",
+        select: "default/select",
+        swap: "default/swap",
+        grip: "default/grip",
+    ),
+    sprites: (
+        red: "rust/red",
+        orange: "rust/orange",
+        yellow: "rust/yellow",
+        green: "rust/green",
+        light_blue: "rust/light_blue",
+        lime: "rust/lime",
+        blue: "rust/blue",
+        indigo: "rust/indigo",
+        purple: "rust/purple",
+        scored: "default/scored",
+        empty: "default/empty",
+        hover: "default/hover",
+        invalid: "default/invalid",
+    ),
+)

@@ -64,7 +64,7 @@ fn rotate_active_system(
     keyboard: Res<Input<KeyCode>>,
     modes: Res<Assets<GameMode>>,
 ) {
-    if let GameState::Main { mode, map: _map } = state.current() {
+    if let GameState::Main { mode, .. } = state.current() {
         let mode = modes.get(mode.clone()).unwrap();
         if mode.can_rotate {
             let right_pressed = keyboard.just_pressed(KeyCode::D);
@@ -244,7 +244,7 @@ pub(crate) fn active_piece_position_system(
 fn pause_system(mut state: ResMut<State<GameState>>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.just_pressed(KeyCode::Escape) {
         match state.current() {
-            GameState::Main { mode: _, map: _map } => state.push(GameState::Pause).ok(),
+            GameState::Main { .. } => state.push(GameState::Pause).ok(),
             GameState::Edit => state.push(GameState::Pause).ok(),
             GameState::Pause => state.pop().ok(),
             _ => None, // do nothing otherwise

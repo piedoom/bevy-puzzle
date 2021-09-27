@@ -16,13 +16,7 @@ impl<'a> PatternWidget<'a> {
             pattern: pattern,
             size: None,
             color: pattern
-                .map(|x| {
-                    Color32::from_rgb(
-                        (u8::MAX as f32 * x.color.r()) as u8,
-                        (u8::MAX as f32 * x.color.g()) as u8,
-                        (u8::MAX as f32 * x.color.b()) as u8,
-                    )
-                })
+                .map(|x| x.color.clone().into())
                 .unwrap_or(Color32::WHITE),
         }
     }

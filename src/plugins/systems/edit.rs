@@ -149,6 +149,7 @@ fn process_events_system(
                     .push(GameState::Main {
                         mode: mode.clone(),
                         map: maps.add(map),
+                        theme: todo!(),
                     })
                     .ok();
             }

@@ -1,21 +1,13 @@
-use std::path::PathBuf;
-
 use bevy::{asset::LoadState, prelude::*};
 use bevy_asset_ron::RonAssetPlugin;
 
-use crate::{
-    assets::SettingsAsset,
-    prelude::*,
-    resources::{TileResource, TileResources},
-    GameState, PreloadingAssets,
-};
+use crate::{assets::SettingsAsset, prelude::*, GameState, PreloadingAssets};
 
 pub struct AssetPlugin;
 
 impl Plugin for AssetPlugin {
     fn build(&self, app: &mut bevy::prelude::AppBuilder) {
-        app.init_resource::<TileResources>()
-            .init_resource::<PreloadingAssets>()
+        app.init_resource::<PreloadingAssets>()
             .init_resource::<Handle<SettingsAsset>>()
             .init_resource::<Themes>()
             .add_asset::<ThemeDescription>()
@@ -74,7 +66,6 @@ fn init_load_system(
     mut state: ResMut<State<GameState>>,
     mut settings_handle: ResMut<Handle<SettingsAsset>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut style: ResMut<TileResources>,
     mut loading: ResMut<PreloadingAssets>,
     mut themes: ResMut<Themes>,
     assets: Res<AssetServer>,
@@ -99,7 +90,7 @@ fn init_load_system(
         let mut load_sprite = |path: &String, loading: &mut PreloadingAssets| {
             let handle = assets.load(format!("sprites/{}.png", path).as_str());
             loading.0.push(handle.clone_untyped());
-            (handle.clone(), materials.add(handle.clone().into()))
+            materials.add(handle.clone().into())
         };
 
         Theme {
@@ -109,7 +100,7 @@ fn init_load_system(
                 swap: load_audio(&desc.sfx.swap, &mut loading),
                 grip: load_audio(&desc.sfx.grip, &mut loading),
             },
-            sprites: ThemeSprites {
+            materials: ThemeSprites {
                 red: load_sprite(&desc.sprites.red, &mut loading),
                 orange: load_sprite(&desc.sprites.orange, &mut loading),
                 yellow: load_sprite(&desc.sprites.yellow, &mut loading),
@@ -117,6 +108,7 @@ fn init_load_system(
                 light_blue: load_sprite(&desc.sprites.light_blue, &mut loading),
                 lime: load_sprite(&desc.sprites.lime, &mut loading),
                 blue: load_sprite(&desc.sprites.blue, &mut loading),
+                indigo: load_sprite(&desc.sprites.indigo, &mut loading),
                 purple: load_sprite(&desc.sprites.purple, &mut loading),
                 scored: load_sprite(&desc.sprites.scored, &mut loading),
                 empty: load_sprite(&desc.sprites.empty, &mut loading),
@@ -132,26 +124,6 @@ fn init_load_system(
         .iter()
         .map(|(_, theme)| theme_from_description(theme))
         .collect();
-
-    // load textures
-    let mut load_tex = |path: &'static str| {
-        let texture: Handle<Texture> = assets.load(PathBuf::from(format!("sprites/{}.png", path)));
-        loading.0.push(texture.clone_untyped());
-        let material: Handle<ColorMaterial> = materials.add(texture.clone().into());
-        (texture.clone(), material.clone())
-    };
-
-    *style = TileResources {
-        empty: TileResource::new(load_tex("empty")),
-        full: TileResource::new(load_tex("full")),
-        hover: TileResource::new(load_tex("hover")),
-        invalid: TileResource::new(load_tex("invalid")),
-        scored: TileResource::new(load_tex("scored")),
-    };
-
-    // load sounds
-    let sound_handles = &mut assets.load_folder("sounds").expect("Could not load modes");
-    loading.0.append(sound_handles);
 
     // load game modes
     let mode_handles = &mut assets.load_folder("modes").expect("Could not load modes");

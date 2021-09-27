@@ -3,31 +3,6 @@ use bevy::prelude::*;
 use rand::{prelude::SliceRandom, thread_rng};
 use std::collections::VecDeque;
 
-/// Saves the handles of all textures needed for styling tiles
-#[derive(Default, Clone)]
-pub struct TileResources {
-    pub empty: TileResource,
-    pub full: TileResource,
-    pub hover: TileResource,
-    pub invalid: TileResource,
-    pub scored: TileResource,
-}
-
-#[derive(Default, Clone)]
-pub struct TileResource {
-    pub texture: Handle<Texture>,
-    pub material: Handle<ColorMaterial>,
-}
-
-impl TileResource {
-    pub fn new(tex_mat: (Handle<Texture>, Handle<ColorMaterial>)) -> Self {
-        Self {
-            texture: tex_mat.0.clone(),
-            material: tex_mat.1.clone(),
-        }
-    }
-}
-
 /// The piece that is currently in a holding state and can be swapped out for the active piece.
 #[derive(Default)]
 pub struct Hold(Option<Pattern>);
