@@ -1,5 +1,6 @@
 //! Systems and other data structures related to obtaining user input and modifying the game in some way
 use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
+use bevy_kira_audio::Audio;
 
 use crate::prelude::*;
 
@@ -15,10 +16,10 @@ impl Plugin for InputPlugin {
             .add_system(get_cursor_position_system.system())
             .add_system_set(
                 SystemSet::on_update(GameState::main())
+                    .with_system(pause_on_lose_focus_system.system())
                     .with_system(rotate_active_system.system())
                     .with_system(add_to_hold_system.system())
                     .with_system(click_commit_system.system())
-                    //.with_system(commit_active_system.system())
                     .with_system(update_hovered_system.system())
                     .with_system(active_piece_position_system.system())
                     .label(Label::Listen),
@@ -63,6 +64,7 @@ fn rotate_active_system(
     state: Res<State<GameState>>,
     keyboard: Res<Input<KeyCode>>,
     modes: Res<Assets<GameMode>>,
+    audio: Option<Res<Audio>>,
 ) {
     if let GameState::Main { mode, .. } = state.current() {
         let mode = modes.get(mode.clone()).unwrap();
@@ -86,6 +88,12 @@ fn rotate_active_system(
                         transform.rotate(rot);
                     })
                     .ok();
+
+                if let GameState::Main { theme, .. } = &state.current() {
+                    if let Some(audio) = &audio {
+                        audio.play(theme.sfx.grip.clone());
+                    }
+                }
             }
         }
     }
@@ -98,12 +106,19 @@ fn add_to_hold_system(
     keyboard: Res<Input<KeyCode>>,
     patterns: Res<Assets<Pattern>>,
     next_up: Res<NextUp>,
+    state: Res<State<GameState>>,
+    audio: Option<Res<Audio>>,
     mut events: EventWriter<GameEvent>,
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
         let pattern = hold.swap(active_pattern.single().unwrap().clone());
         let pattern = pattern.unwrap_or(patterns.get(next_up.clone()).unwrap().clone());
+        if let GameState::Main { theme, .. } = &state.current() {
+            if let Some(audio) = &audio {
+                audio.play(theme.sfx.swap.clone());
+            }
+        }
         events.send(GameEvent::SetActivePattern {
             pattern,
             unswappable: true,
@@ -291,4 +306,14 @@ fn determine_input_method_system(
             }
         }
     }
+}
+
+/// Automatically pause the game when focus is lost. Opt for adding this to
+/// [`SystemSet`]s instead of enabling during all game states
+fn pause_on_lose_focus_system(mut state: ResMut<State<GameState>>, windows: Res<Windows>) {
+    windows.get_primary().map(|w| {
+        if !w.is_focused() {
+            state.push(GameState::Pause).ok();
+        }
+    });
 }

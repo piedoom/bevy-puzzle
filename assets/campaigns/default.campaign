@@ -1,0 +1,10 @@
+(
+    name: "default",
+    levels: [
+        (
+            map: "default",
+            mode: "default",
+            objective: Survive(Duration(secs: 60, nanos: 0)),
+        )
+    ]
+)

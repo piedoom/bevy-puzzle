@@ -3,6 +3,7 @@ use bevy::{
     prelude::*,
     reflect::TypeUuid,
 };
+use bevy_kira_audio::AudioSource;
 
 #[derive(
     serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Default, Debug, Clone, Eq, Hash,

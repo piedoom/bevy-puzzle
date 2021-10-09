@@ -1,6 +1,9 @@
 use crate::prelude::*;
 use bevy::prelude::*;
-use bevy_egui::{egui::*, *};
+use bevy_egui::{
+    egui::{self, style::Spacing, Vec2 as EVec2, Visuals},
+    *,
+};
 
 use super::widgets::SelectAssetWidget;
 
@@ -18,15 +21,34 @@ pub(crate) fn ui_menu_system(
     mut state: ResMut<State<GameState>>,
     mut menu_state: ResMut<MenuState>,
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
+    mut ui_settings: ResMut<EguiSettings>,
     maps: ResMut<Assets<Map>>,
     ctx: ResMut<EguiContext>,
     settings_handle: Res<Handle<SettingsAsset>>,
     modes: Res<Assets<GameMode>>,
     themes: Res<Themes>,
 ) {
+    ui_settings.scale_factor = 2f64;
     egui::Area::new("menu")
-        .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx.ctx(), |ui| {
+            let spacing = ui.spacing_mut();
+            *spacing = Spacing {
+                item_spacing: EVec2::splat(4f32),
+                window_padding: EVec2::new(24.0, 24.0),
+                button_padding: EVec2::new(12.0, 6.0),
+                // indent: (),
+                // slider_width: (),
+                // text_edit_width: (),
+                // icon_width: (),
+                // icon_spacing: (),
+                // tooltip_width: (),
+                // indent_ends_with_horizontal_line: (),
+                // combo_height: (),
+                // scroll_bar_width: (),
+                ..Default::default()
+            };
+
             let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
             // Show high scores
             ui.vertical(|ui| {
@@ -104,7 +126,7 @@ pub(crate) fn ui_menu_system(
 pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: ResMut<EguiContext>) {
     egui::Window::new("Paused")
         .collapsible(false)
-        .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
         .show(ctx.ctx(), |ui| {
             // if we got here from edit mode, show a special exit button
             if let Some(GameState::Edit) = state.inactives().first() {

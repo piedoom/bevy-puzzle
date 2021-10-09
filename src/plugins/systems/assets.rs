@@ -10,14 +10,17 @@ impl Plugin for AssetPlugin {
         app.init_resource::<PreloadingAssets>()
             .init_resource::<Handle<SettingsAsset>>()
             .init_resource::<Themes>()
+            .init_resource::<Campaigns>()
             .add_asset::<ThemeDescription>()
             .add_asset::<Pattern>()
             .add_asset::<GameMode>()
             .add_asset::<Map>()
+            .add_asset::<CampaignDescription>()
             .add_plugin(RonAssetPlugin::<GameMode>::new(&["mode"]))
             .add_plugin(RonAssetPlugin::<Map>::new(&["map"]))
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
             .add_plugin(RonAssetPlugin::<ThemeDescription>::new(&["theme"]))
+            .add_plugin(RonAssetPlugin::<CampaignDescription>::new(&["campaign"]))
             .init_asset_loader::<PatternLoader>()
             .add_system_set(
                 // Load setup
@@ -35,6 +38,10 @@ impl Plugin for AssetPlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::load())
                     .with_system(assets_loaded_transition_system.system()),
+            )
+            .add_system_set(
+                SystemSet::on_exit(GameState::load())
+                    .with_system(assemble_after_loaded_system.system()),
             );
     }
 }
@@ -43,6 +50,11 @@ impl Plugin for AssetPlugin {
 fn init_pre_load_system(mut loading: ResMut<PreloadingAssets>, assets: Res<AssetServer>) {
     let theme_handles = &mut assets.load_folder("themes").expect("Could not load modes");
     loading.0.append(theme_handles);
+
+    let campaign_handles = &mut assets
+        .load_folder("campaigns")
+        .expect("Could not load campaigns");
+    loading.0.append(campaign_handles);
 }
 
 fn pre_load_assets_loaded_transition_system(
@@ -68,8 +80,10 @@ fn init_load_system(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut loading: ResMut<PreloadingAssets>,
     mut themes: ResMut<Themes>,
+    mut campaigns: ResMut<Campaigns>,
     assets: Res<AssetServer>,
     theme_assets: Res<Assets<ThemeDescription>>,
+    campaign_assets: Res<Assets<CampaignDescription>>,
 ) {
     // load our settings file
     *settings_handle = assets.load("settings.rfg");
@@ -157,4 +171,44 @@ fn assets_loaded_transition_system(
         // Transition states to the menu
         state.set(GameState::Menu).ok();
     }
+}
+
+/// Assemble assets that need everything to be loaded first. Call this on exit.
+fn assemble_after_loaded_system(
+    mut campaigns: ResMut<Campaigns>,
+    maps: Res<Assets<Map>>,
+    modes: Res<Assets<GameMode>>,
+    campaign_descriptions: Res<Assets<CampaignDescription>>,
+) {
+    let campaign_from_description = |desc: &CampaignDescription| -> Campaign {
+        Campaign {
+            name: desc.name.clone(),
+            levels: desc
+                .levels
+                .iter()
+                .map(|level| Level {
+                    map: maps
+                        .iter()
+                        .find_map(|(handle, map)| match map.name == level.map {
+                            true => Some(maps.get_handle(handle)),
+                            false => None,
+                        })
+                        .unwrap(),
+                    mode: modes
+                        .iter()
+                        .find_map(|(handle, mode)| match mode.name == level.mode {
+                            true => Some(modes.get_handle(handle)),
+                            false => None,
+                        })
+                        .unwrap(),
+                    objective: level.objective.clone(),
+                })
+                .collect(),
+        }
+    };
+
+    *campaigns = campaign_descriptions
+        .iter()
+        .map(|desc| campaign_from_description(desc.1))
+        .collect();
 }

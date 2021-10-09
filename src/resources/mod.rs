@@ -1,10 +1,11 @@
 use crate::prelude::*;
 
+mod campaign;
 mod input;
 mod leaderboard;
 mod tile;
 
-pub use {input::*, leaderboard::*, tile::*};
+pub use {campaign::*, input::*, leaderboard::*, tile::*};
 
 #[derive(Default)]
 /// Counts the number of piece placements in the game
@@ -27,6 +28,22 @@ impl Step {
         self.0 = 0;
     }
 
+    pub fn percent(&self, mode: &GameMode) -> Option<f32> {
+        match mode.timer_rate {
+            // A constant timer gives us a constant percentage finished (1f32)
+            TimerRate::Constant(_) => Some(1f32),
+            TimerRate::Progressive { steps, delay, .. } => {
+                // map step to range of values
+                Some(if self.0 <= delay {
+                    0f32
+                } else {
+                    ((self.0 - delay) as f32 / steps as f32).clamp(0f32, 1f32)
+                })
+            }
+            TimerRate::Endless { .. } => None,
+        }
+    }
+
     /// Create a timer appropriate for this step of the game, depending on the gamemode
     pub fn create_timer(&self, mode: &GameMode) -> PlacementTimer {
         // calculate the duration of our timer based on our current step and our gamemode settings
@@ -39,11 +56,7 @@ impl Step {
                 delay,
             } => {
                 // map step to range of values
-                let percent = if self.0 <= delay {
-                    0f32
-                } else {
-                    ((self.0 - delay) as f32 / steps as f32).clamp(0f32, 1f32)
-                };
+                let percent = self.percent(&mode).unwrap();
                 PlacementTimer::from_seconds(
                     percent.lerp(start_rate.as_secs_f32(), end_rate.as_secs_f32()),
                     false,

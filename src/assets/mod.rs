@@ -1,9 +1,11 @@
+mod campaign;
 mod map;
 mod mode;
 mod pattern;
 mod settings;
 mod theme;
 
+pub use campaign::*;
 pub use map::*;
 pub use mode::*;
 pub use pattern::*;

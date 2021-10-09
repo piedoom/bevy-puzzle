@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 use bevy::render::camera::{Camera, OrthographicProjection};
 use bevy_egui::egui::{self, *};
-use bevy_egui::EguiContext;
+use bevy_egui::{EguiContext, EguiSettings};
 
 use crate::assets::*;
 use crate::prelude::*;
 use crate::ui::widgets::PatternWidget;
+
+use super::widgets::SpeedWidget;
 
 pub(crate) struct Bounds {
     pub(crate) world: egui::Rect,
@@ -21,6 +23,7 @@ impl Default for Bounds {
 
 /// Draw the UI for our main game state
 pub(crate) fn ui_main_system(
+    step: Res<Step>,
     windows: Res<Windows>,
     camera: Query<(&Camera, &OrthographicProjection, &GlobalTransform)>,
     ctx: ResMut<EguiContext>,
@@ -32,6 +35,7 @@ pub(crate) fn ui_main_system(
     state: Res<State<GameState>>,
     bounds: Res<Bounds>,
     modes: Res<Assets<GameMode>>,
+    ui_settings: Res<EguiSettings>,
 ) {
     // get current mode
     if let GameState::Main { mode, .. } = state.current() {
@@ -44,37 +48,41 @@ pub(crate) fn ui_main_system(
                     if let Some(pos) =
                         camera.world_to_screen(&windows, camera_transform, t.translation)
                     {
-                        let margin = 64f32;
-                        let pos = egui::Vec2::new(
-                            pos.x - margin,
-                            windows.get_primary().map(|x| x.height()).unwrap_or(0f32)
-                                - pos.y
-                                - margin,
-                        );
+                        let window_height =
+                            windows.get_primary().map(|x| x.height()).unwrap_or(0f32);
+                        let margin = 64f32 * ui_settings.scale_factor as f32;
+                        let pos = egui::Vec2::new(pos.x - margin, window_height - pos.y - margin)
+                            / ui_settings.scale_factor as f32;
+                        let radius = 10f32;
                         egui::containers::Area::new("timer")
                             .interactable(false)
                             .current_pos(Pos2::new(pos.x, pos.y))
                             .show(ctx.ctx(), |ui| {
                                 let (_, paint) = ui.allocate_painter(
-                                    egui::Vec2::new(32f32, 32f32),
+                                    egui::Vec2::splat(radius * 2f32),
                                     Sense::click(),
                                 );
 
                                 paint.add(Shape::circle_filled(
-                                    Pos2::new(pos.x + 16f32, pos.y + 16f32),
-                                    16f32,
+                                    Pos2::new(pos.x + radius, pos.y + radius),
+                                    radius,
                                     Color32::from_rgb(46, 45, 91),
                                 ));
 
                                 paint.add(Shape::circle_filled(
-                                    Pos2::new(pos.x + 16f32, pos.y + 16f32),
-                                    16f32 * timer.percent(),
+                                    Pos2::new(pos.x + radius, pos.y + radius),
+                                    radius * timer.percent(),
                                     Color32::GREEN,
                                 ));
                             });
                     }
                 })
                 .ok();
+
+            let height = windows
+                .get_primary()
+                .map(|w| w.height())
+                .unwrap_or_default();
 
             // Score and other ui stuff
             // Get the extents with on-screen pixel values so we can add UI stuff aligned to the gameboard.
@@ -88,16 +96,14 @@ pub(crate) fn ui_main_system(
                 let pos_to_pixels = |pos: Pos2| -> Vec3 {
                     let scalar = 1f32 / projection.scale;
                     let unit_offset = trans - Vec3::new(pos.x, pos.y, 0f32);
-                    unit_offset * scalar
+                    let mut r = unit_offset * scalar;
+                    // invert for egui
+                    r.y = height - r.y;
+                    r
                 };
 
                 let min_raw = pos_to_pixels(min_world);
                 let max_raw = pos_to_pixels(max_world);
-
-                let height = windows
-                    .get_primary()
-                    .map(|w| w.height())
-                    .unwrap_or_default();
 
                 let min = Pos2::new(min_raw.x, height - min_raw.y);
                 let max = Pos2::new(max_raw.x, height - max_raw.y);
@@ -105,16 +111,28 @@ pub(crate) fn ui_main_system(
                 egui::Rect { min, max }
             };
 
+            let mode = modes.get(mode.clone()).unwrap();
             egui::containers::Area::new("score")
-                .fixed_pos(extents.left_top() + egui::Vec2::new(0f32, -32f32))
+                .anchor(Align2::LEFT_TOP, egui::Vec2::splat(32f32))
+                //.fixed_pos(extents.left_top() + egui::Vec2::new(0f32, -32f32))
                 .show(ctx.ctx(), |ui| {
-                    ui.heading(format!("Score: {}", score.to_string()));
+                    ui.vertical(|ui| {
+                        ui.heading(format!("Score: {}", score.to_string()));
+                        // speed widget
+                        let timer = active.single().map(|(_, t, ..)| t).ok();
+                        ui.add(SpeedWidget {
+                            mode,
+                            step: &step,
+                            timer,
+                        });
+                        ui.heading("Speed");
+                    });
                 });
 
             // Side panel info
-            let mode = modes.get(mode.clone()).unwrap();
             egui::containers::Area::new("panel")
-                .fixed_pos(extents.right_top() + egui::Vec2::new(32f32, 0f32)) // + egui::Vec2::new(100f32, 0f32))
+                .anchor(Align2::RIGHT_TOP, egui::Vec2::new(-32f32, 32f32))
+                //.fixed_pos(extents.right_top() + egui::Vec2::new(32f32, 0f32)) // + egui::Vec2::new(100f32, 0f32))
                 .show(ctx.ctx(), |ui| {
                     ui.vertical(|ui| {
                         // Create a widget for our held piece, if we are allowed
@@ -129,6 +147,7 @@ pub(crate) fn ui_main_system(
                             if let Some(next_pattern) = patterns.get(next_up.clone()) {
                                 ui.add(PatternWidget::new(Some(next_pattern)).size(128f32));
                                 ui.heading("Next");
+                                ui.add_space(50f32);
                             }
                         }
                     });

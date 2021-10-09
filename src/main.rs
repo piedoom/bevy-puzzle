@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
+use bevy_kira_audio::AudioPlugin;
 use pz::prelude::*;
 fn main() {
     App::build()
@@ -14,6 +15,7 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.02, 0.05)))
         .add_plugins(DefaultPlugins)
         .add_plugins(FullPlugins)
+        .add_plugin(AudioPlugin)
         .add_plugin(EguiPlugin)
         .add_plugin(pz::ui::UiPlugin)
         .run();

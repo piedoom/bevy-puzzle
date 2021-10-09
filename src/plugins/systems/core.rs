@@ -7,7 +7,8 @@ use crate::{
     prelude::*,
     ui::{Bounds, MenuState},
 };
-use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera};
+use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera, utils::Instant};
+use bevy_kira_audio::Audio;
 
 use super::Label;
 
@@ -36,6 +37,7 @@ impl Plugin for CorePuzzlePlugin {
                 SystemSet::on_update(GameState::main())
                     .with_system(scorer_system.system())
                     .with_system(placement_timer_tick_system.system())
+                    .with_system(level_win_loss_system.system())
                     .label(Label::Process)
                     .after(Label::Listen),
             )
@@ -209,6 +211,33 @@ fn scorer_system(
     }
 }
 
+/// Determines whether the specific level being played is win or loss
+fn level_win_loss_system(
+    current_level: Option<Res<CurrentLevel>>,
+    started: Option<Res<GameStarted>>,
+    score: Res<Score>,
+) {
+    if let (Some(level), Some(started)) = (current_level, started) {
+        match level.objective {
+            Objective::FreePlay => (), // no-op
+            Objective::Survive(duration) => {
+                // check to see if the player has surpassed the necessary duration
+                if Instant::now().duration_since(*started) >= duration {
+                    todo!("win");
+                }
+            }
+            Objective::TimeLimit {
+                required_score,
+                duration,
+            } => {
+                if Instant::now().duration_since(*started) >= duration && *score >= required_score {
+                    todo!("win");
+                }
+            }
+        }
+    }
+}
+
 /// Sets up everything needed to run the main game loop. It also checks to ensure nothing will be overwritten,
 /// so states can be pushed and popped as needed.
 fn setup_system(
@@ -221,13 +250,13 @@ fn setup_system(
     modes: Res<Assets<GameMode>>,
     maps: Res<Assets<Map>>,
     state: Res<State<GameState>>,
-    settings: Res<Assets<SettingsAsset>>,
-    settings_handle: Res<Handle<SettingsAsset>>,
+    settings: (Res<Assets<SettingsAsset>>, Res<Handle<SettingsAsset>>),
     patterns: Res<Assets<Pattern>>,
     queries: QuerySet<(Query<Entity, With<GameBoard>>, Query<Entity, With<Camera>>)>,
 ) {
     let (_board, cameras) = (queries.q0(), queries.q1());
-    let settings = settings.get(settings_handle.clone()).unwrap();
+    let settings = settings.0.get(settings.1.clone()).unwrap();
+    cmd.insert_resource(GameStarted::now());
     if let GameState::Main { mode, map, .. } = state.current() {
         let mode = modes.get(mode.clone()).unwrap();
         let map = maps.get(map.clone()).unwrap();
@@ -339,6 +368,7 @@ fn process_events_system(
     mut state: ResMut<State<GameState>>,
     mut step: ResMut<Step>,
     mut active: Query<(Entity, &mut Transform, &Pattern), With<ActiveEntity>>,
+    audio: Option<Res<Audio>>,
     modes: Res<Assets<GameMode>>,
     position_mode: Res<ActivePositionMode>,
     score: ResMut<Score>,
@@ -347,12 +377,12 @@ fn process_events_system(
         Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
         Query<Entity, With<GameBoard>>,
     )>,
-
     pattern_assets: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
 ) {
     let (hover, _board) = (tiles.q0(), tiles.q1());
     let mut send_events = vec![];
+
     for event in events.drain() {
         match event {
             GameEvent::SetActivePattern {
@@ -428,6 +458,13 @@ fn process_events_system(
                         cmd.entity(e).insert(color.clone());
                     });
 
+                    // play a sound if we have that ability
+                    if let GameState::Main { theme, .. } = &state.current() {
+                        if let Some(audio) = &audio {
+                            audio.play(theme.sfx.place.clone());
+                        }
+                    }
+
                     // This check is needed in case the event is processed after a change that resets our next piece
                     if let Some(pattern) = pattern_assets.get(next.clone()) {
                         // Set active to our next up piece
@@ -472,6 +509,7 @@ fn process_events_system(
             }
         }
     }
+
     for event in send_events {
         events.send(event);
     }
@@ -492,6 +530,7 @@ pub(crate) fn reset_game_system(
     *score = 0;
     *next = Handle::<Pattern>::default();
     *bag = Bag::default();
+    cmd.remove_resource::<CurrentLevel>();
     step.reset();
     active
         .single_mut()

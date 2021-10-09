@@ -2,6 +2,7 @@
 
 use crate::GameState;
 use bevy::prelude::*;
+use bevy_egui::{egui::Visuals, EguiContext};
 
 use self::edit::EditUiPlugin;
 

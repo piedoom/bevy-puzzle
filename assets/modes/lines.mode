@@ -1,5 +1,5 @@
 GameMode(
-    name: "line",
+    name: "lines",
     can_rotate: true,
     can_hold: true,
     can_peek: true,
@@ -26,5 +26,5 @@ GameMode(
         "snake left",
         "snake right",
     ],
-    scorer: Line(Horizontal),
+    scorer: Line(Both),
 )
