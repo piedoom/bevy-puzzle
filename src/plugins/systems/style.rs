@@ -9,16 +9,16 @@ impl Plugin for StylePlugin {
     fn build(&self, app: &mut App) {
         let process = |state: GameState| -> SystemSet {
             SystemSet::on_update(state)
-                .with_system(add_sprite_to_tiles_system.system())
+                .with_system(add_sprite_to_tiles_system)
                 .label(Label::Process)
                 .before(Label::React)
         };
 
         let react = |state: GameState| -> SystemSet {
             SystemSet::on_update(state)
-                .with_system(style_blocks_system.system())
-                .with_system(scored_effect_system.system())
-                .with_system(animate_active_system.system())
+                .with_system(style_blocks_system)
+                .with_system(scored_effect_system)
+                .with_system(animate_active_system)
                 .label(Label::React)
                 .after(Label::Process)
         };

@@ -24,27 +24,25 @@ impl Plugin for CorePuzzlePlugin {
             .init_resource::<Hold>()
             .init_resource::<NextUp>()
             .add_event::<GameEvent>()
-            .add_system(process_events_system.system())
-            .add_system_set(
-                SystemSet::on_exit(GameState::load()).with_system(set_default_system.system()),
-            )
+            .add_system(process_events_system)
+            .add_system_set(SystemSet::on_exit(GameState::load()).with_system(set_default_system))
             .add_system_set(
                 SystemSet::on_enter(GameState::main())
-                    .with_system(setup_system.system())
+                    .with_system(setup_system)
                     .label("setup"),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::main())
-                    .with_system(scorer_system.system())
-                    .with_system(placement_timer_tick_system.system())
-                    .with_system(level_win_loss_system.system())
+                    .with_system(scorer_system)
+                    .with_system(placement_timer_tick_system)
+                    .with_system(level_win_loss_system)
                     .label(Label::Process)
                     .after(Label::Listen),
             )
             .add_system_set(
                 SystemSet::on_exit(GameState::main())
-                    .with_system(destroy_map_system.system())
-                    .with_system(reset_game_system.system()),
+                    .with_system(destroy_map_system)
+                    .with_system(reset_game_system),
             );
     }
 }

@@ -15,21 +15,19 @@ pub struct EditPlugin;
 impl Plugin for EditPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<EditEvent>()
-            .add_system_set(
-                SystemSet::on_enter(GameState::edit()).with_system(setup_system.system()),
-            )
+            .add_system_set(SystemSet::on_enter(GameState::edit()).with_system(setup_system))
             .add_system_set(
                 SystemSet::on_update(GameState::edit())
-                    .with_system(preview_system.system())
-                    .with_system(active_piece_position_system.system())
-                    .with_system(process_events_system.system())
-                    .with_system(edit_input_system.system()),
+                    .with_system(preview_system)
+                    .with_system(active_piece_position_system)
+                    .with_system(process_events_system)
+                    .with_system(edit_input_system),
             )
             .add_system_set(
                 SystemSet::on_exit(GameState::edit())
-                    .with_system(destroy_map_system.system())
-                    .with_system(reset_game_system.system())
-                    .with_system(edit_cleanup_system.system()),
+                    .with_system(destroy_map_system)
+                    .with_system(reset_game_system)
+                    .with_system(edit_cleanup_system),
             );
     }
 }

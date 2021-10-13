@@ -25,17 +25,17 @@ impl Plugin for UiPlugin {
             .insert_resource(Bounds::default())
             .add_system_set(
                 SystemSet::on_update(GameState::menu())
-                    .with_system(ui_menu_system.system())
+                    .with_system(ui_menu_system)
                     .label("main"),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::main())
-                    .with_system(ui_main_system.system())
+                    .with_system(ui_main_system)
                     .label("main"),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::pause())
-                    .with_system(ui_pause_menu_system.system())
+                    .with_system(ui_pause_menu_system)
                     .label("pause"),
             )
             .add_plugin(EditUiPlugin);

@@ -11,17 +11,17 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CursorPosition>()
             .insert_resource(ActivePositionMode::Mouse)
-            .add_system(pause_system.system())
-            .add_system(determine_input_method_system.system())
-            .add_system(get_cursor_position_system.system())
+            .add_system(pause_system)
+            .add_system(determine_input_method_system)
+            .add_system(get_cursor_position_system)
             .add_system_set(
                 SystemSet::on_update(GameState::main())
-                    .with_system(pause_on_lose_focus_system.system())
-                    .with_system(rotate_active_system.system())
-                    .with_system(add_to_hold_system.system())
-                    .with_system(click_commit_system.system())
-                    .with_system(update_hovered_system.system())
-                    .with_system(active_piece_position_system.system())
+                    .with_system(pause_on_lose_focus_system)
+                    .with_system(rotate_active_system)
+                    .with_system(add_to_hold_system)
+                    .with_system(click_commit_system)
+                    .with_system(update_hovered_system)
+                    .with_system(active_piece_position_system)
                     .label(Label::Listen),
             );
     }

@@ -25,24 +25,22 @@ impl Plugin for AssetPlugin {
             .init_asset_loader::<PatternLoader>()
             .add_system_set(
                 // Load setup
-                SystemSet::on_enter(GameState::pre_load())
-                    .with_system(init_pre_load_system.system()),
+                SystemSet::on_enter(GameState::pre_load()).with_system(init_pre_load_system),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::pre_load())
-                    .with_system(pre_load_assets_loaded_transition_system.system()),
+                    .with_system(pre_load_assets_loaded_transition_system),
             )
             .add_system_set(
                 // Load setup
-                SystemSet::on_enter(GameState::load()).with_system(init_load_system.system()),
+                SystemSet::on_enter(GameState::load()).with_system(init_load_system),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::load())
-                    .with_system(assets_loaded_transition_system.system()),
+                    .with_system(assets_loaded_transition_system),
             )
             .add_system_set(
-                SystemSet::on_exit(GameState::load())
-                    .with_system(assemble_after_loaded_system.system()),
+                SystemSet::on_exit(GameState::load()).with_system(assemble_after_loaded_system),
             );
     }
 }
