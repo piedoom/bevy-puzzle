@@ -857,6 +857,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "bevy_asset_ron",
+ "bevy_egui",
+ "bevy_kira_audio",
+ "rand",
+ "ron",
+ "serde",
+ "shared",
+ "tracing",
+]
+
+[[package]]
 name = "clipboard"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2496,21 +2512,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87dfd5592a8eed7e74f56ad7b125f8234763b805c30f0c7c95c486920026a6ec"
 
 [[package]]
-name = "puzzle"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bevy",
- "bevy_asset_ron",
- "bevy_egui",
- "bevy_kira_audio",
- "rand",
- "ron",
- "serde",
- "tracing",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2735,6 +2736,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "900fba806f70c630b0a382d0d825e17a0f19fcd059a2ade1ff237bcddf446b31"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "bevy_asset_ron",
+ "bevy_egui",
+ "bevy_kira_audio",
+ "rand",
+ "ron",
+ "serde",
+ "tracing",
 ]
 
 [[package]]

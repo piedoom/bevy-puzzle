@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_kira_audio::AudioPlugin;
+use shared::{self, prelude::FullPlugins};
 // use bevy_egui::EguiPlugin;
 // use bevy_kira_audio::AudioPlugin;
-use pz::prelude::*;
 fn main() {
     App::new()
         .insert_resource(WindowDescriptor {
@@ -19,6 +19,6 @@ fn main() {
         .add_plugins(FullPlugins)
         .add_plugin(AudioPlugin)
         .add_plugin(EguiPlugin)
-        .add_plugin(pz::ui::UiPlugin)
+        .add_plugin(shared::ui::UiPlugin)
         .run();
 }

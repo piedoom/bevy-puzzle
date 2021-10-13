@@ -1,35 +1,9 @@
-[package]
-resolver = "2"
-name = "puzzle"
-version = "0.1.0"
-authors = ["doomy <2640792-_doomy@users.noreply.gitlab.com>"]
-edition = "2018"
+[workspace]
 
-[lib]
-name = "pz"
-
-# Dependencies for all targets go here.
-[dependencies]
-serde = "*"
-ron = "*"
-anyhow = "*"
-bevy_asset_ron = { git = "https://github.com/inodentry/bevy_asset_ron" }
-rand = {version = "*"}
-tracing = "0.1.29"
-
-
-[dependencies.bevy]
-version = "0.5"
-default_features = false
-features = ["serialize", "render", "png", "x11", "bevy_wgpu", "bevy_winit"] 
-
-[dependencies.bevy_kira_audio]
-branch = "bevy_main"
-git = "https://github.com/piedoom/bevy_kira_audio"
-
-[dependencies.bevy_egui]
-branch = "bevy-main"
-git = "https://github.com/DavidDomkar/bevy_egui"
+members = [
+    "crates/shared",
+    "crates/client",
+]
 
 [patch.crates-io]
 bevy = { git = 'https://github.com/bevyengine/bevy', branch = "main" }
