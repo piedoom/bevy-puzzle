@@ -39,11 +39,11 @@ pub(crate) fn ui_main_system(
 ) {
     // get current mode
     if let GameState::Main { mode, .. } = state.current() {
-        if let Ok((camera, projection, camera_transform)) = camera.single() {
+        if let Ok((camera, projection, camera_transform)) = camera.get_single() {
             // cursor
             // get active position
             active
-                .single()
+                .get_single()
                 .map(|(_, timer, t)| {
                     if let Some(pos) =
                         camera.world_to_screen(&windows, camera_transform, t.translation)
@@ -119,7 +119,7 @@ pub(crate) fn ui_main_system(
                     ui.vertical(|ui| {
                         ui.heading(format!("Score: {}", score.to_string()));
                         // speed widget
-                        let timer = active.single().map(|(_, t, ..)| t).ok();
+                        let timer = active.get_single().map(|(_, t, ..)| t).ok();
                         ui.add(SpeedWidget {
                             mode,
                             step: &step,

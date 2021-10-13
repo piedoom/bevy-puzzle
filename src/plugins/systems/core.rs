@@ -15,7 +15,7 @@ use super::Label;
 pub struct CorePuzzlePlugin;
 
 impl Plugin for CorePuzzlePlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_state(GameState::default())
             .init_resource::<Score>()
             .init_resource::<ActiveEntity>()
@@ -190,7 +190,7 @@ fn scorer_system(
                 .remove::<tile_styles::Invalid>()
                 .remove::<tile_styles::Hover>()
                 .remove::<tile_states::Full>()
-                .remove::<Color>()
+                .remove::<TileColor>()
                 .insert(tile_states::Empty)
                 .insert(tile_styles::None);
             // spawn a scoring block
@@ -250,12 +250,12 @@ fn setup_system(
     modes: Res<Assets<GameMode>>,
     maps: Res<Assets<Map>>,
     state: Res<State<GameState>>,
-    settings: (Res<Assets<SettingsAsset>>, Res<Handle<SettingsAsset>>),
+    settings: Res<Assets<SettingsAsset>>,
+    current_setting: Res<Handle<SettingsAsset>>,
     patterns: Res<Assets<Pattern>>,
-    queries: QuerySet<(Query<Entity, With<GameBoard>>, Query<Entity, With<Camera>>)>,
+    cameras: Query<Entity, With<Camera>>,
 ) {
-    let (_board, cameras) = (queries.q0(), queries.q1());
-    let settings = settings.0.get(settings.1.clone()).unwrap();
+    let settings = settings.get(current_setting.clone()).unwrap();
     cmd.insert_resource(GameStarted::now());
     if let GameState::Main { mode, map, .. } = state.current() {
         let mode = modes.get(mode.clone()).unwrap();
@@ -274,7 +274,7 @@ fn setup_system(
         // Use unpadded bounds here just so we can successfully center the camera
         let center = rect.center();
         // Create camera if none exists. Reset the transform since the map may have changed
-        let camera_entity = cameras.single().map(|e| e).unwrap_or(cmd.spawn().id());
+        let camera_entity = cameras.get_single().map(|e| e).unwrap_or(cmd.spawn().id());
 
         // Set the position and scale of the camera on every start
         // Calculate the overall size of the board, and divide to find the center point
@@ -322,7 +322,7 @@ fn placement_timer_tick_system(
     time: Res<Time>,
 ) {
     active_timer
-        .single_mut()
+        .get_single_mut()
         .map(|mut t| {
             t.tick(time.delta());
             if t.just_finished() {
@@ -373,14 +373,10 @@ fn process_events_system(
     position_mode: Res<ActivePositionMode>,
     score: ResMut<Score>,
     settings_handle: Res<Handle<SettingsAsset>>,
-    tiles: QuerySet<(
-        Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
-        Query<Entity, With<GameBoard>>,
-    )>,
+    hover: Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
     pattern_assets: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
 ) {
-    let (hover, _board) = (tiles.q0(), tiles.q1());
     let mut send_events = vec![];
 
     for event in events.drain() {
@@ -391,7 +387,7 @@ fn process_events_system(
             } => {
                 // create the transform for our new active (if in keyboard mode)
                 let active_transform = active
-                    .single_mut()
+                    .get_single_mut()
                     .map(|(_, t, _)| *t)
                     .unwrap_or(Transform::from_xyz(0f32, 0f32, 7f32));
 
@@ -446,7 +442,7 @@ fn process_events_system(
             GameEvent::CommitActive { loss_on_failure } => {
                 // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
                 let (actives, color) = active
-                    .single_mut()
+                    .get_single_mut()
                     .map(|(.., pattern)| (pattern.blocks.len(), pattern.color.clone()))
                     .unwrap_or((0, Default::default()));
 
@@ -533,7 +529,7 @@ pub(crate) fn reset_game_system(
     cmd.remove_resource::<CurrentLevel>();
     step.reset();
     active
-        .single_mut()
+        .get_single_mut()
         .map(|entity| cmd.entity(entity).despawn_recursive())
         .ok();
 }

@@ -8,7 +8,7 @@ use super::Label;
 
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<CursorPosition>()
             .insert_resource(ActivePositionMode::Mouse)
             .add_system(pause_system.system())
@@ -47,7 +47,7 @@ fn get_cursor_position_system(
             let p = pos - size / 2.0;
 
             // assuming there is exactly one main camera entity, so this is OK
-            if let Ok((camera_transform, proj)) = cameras.single() {
+            if let Ok((camera_transform, proj)) = cameras.get_single() {
                 // apply the camera transform
                 let pos_world =
                     camera_transform.compute_matrix() * proj.scale * p.extend(0.0).extend(1.0);
@@ -82,7 +82,7 @@ fn rotate_active_system(
                 let rot = Quat::from_rotation_z(multiplier * 90f32.to_radians());
 
                 active
-                    .single_mut()
+                    .get_single_mut()
                     .map(|mut transform| {
                         // rotate the overall piece
                         transform.rotate(rot);
@@ -112,7 +112,7 @@ fn add_to_hold_system(
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
-        let pattern = hold.swap(active_pattern.single().unwrap().clone());
+        let pattern = hold.swap(active_pattern.get_single().unwrap().clone());
         let pattern = pattern.unwrap_or(patterns.get(next_up.clone()).unwrap().clone());
         if let GameState::Main { theme, .. } = &state.current() {
             if let Some(audio) = &audio {
@@ -179,7 +179,7 @@ fn update_hovered_system(
 ) {
     // Our active entity contains children of the actual tiles which we get here
     active
-        .single()
+        .get_single()
         .map(|entity| {
             // get all blocks in the active pattern
             // compare and highlight tiles on the gameboard
@@ -227,8 +227,8 @@ fn update_hovered_system(
 }
 
 pub(crate) fn active_piece_position_system(
+    mut active: Query<&mut Transform, With<ActiveEntity>>,
     position_mode: Res<ActivePositionMode>,
-    active: Query<&mut Transform, With<ActiveEntity>>,
     cursor: Res<CursorPosition>,
     keyboard: Res<Input<KeyCode>>,
 ) {
@@ -270,7 +270,7 @@ fn pause_system(mut state: ResMut<State<GameState>>, keyboard: Res<Input<KeyCode
 fn determine_input_method_system(
     mut position_mode: ResMut<ActivePositionMode>,
     mut mouse_motion: EventReader<MouseMotion>,
-    active: Query<&mut Transform, With<ActiveEntity>>,
+    mut active: Query<&mut Transform, With<ActiveEntity>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
     // If any of the move keys are pressed, set to keyboard positioning

@@ -1,7 +1,7 @@
 use bevy::{asset::*, prelude::*, reflect::TypeUuid};
 use bevy_egui::egui::Color32;
 
-#[derive(Default, Debug, Clone, TypeUuid, serde::Deserialize)]
+#[derive(Default, Debug, Clone, TypeUuid, serde::Deserialize, Component)]
 #[uuid = "39cadc56-aa9c-4543-8640-a018b74b505b"]
 pub struct Pattern {
     pub name: String,
@@ -9,7 +9,7 @@ pub struct Pattern {
     pub blocks: Vec<Vec2>,
 }
 
-#[derive(Default, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, serde::Deserialize, Component)]
 pub enum PatternColor {
     #[default]
     Red,

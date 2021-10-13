@@ -6,7 +6,7 @@ use super::Label;
 pub struct StylePlugin;
 
 impl Plugin for StylePlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         let process = |state: GameState| -> SystemSet {
             SystemSet::on_update(state)
                 .with_system(add_sprite_to_tiles_system.system())
@@ -37,7 +37,7 @@ fn animate_active_system(
     placement_timer: Query<&PlacementTimer, With<ActiveEntity>>,
 ) {
     active
-        .single()
+        .get_single()
         .map(|p| {
             p.iter().for_each(|e| {
                 transforms
@@ -46,7 +46,7 @@ fn animate_active_system(
                         t.scale = Vec3::new(0.95, 0.95, 0.0).lerp(
                             Vec3::ONE,
                             placement_timer
-                                .single()
+                                .get_single()
                                 .map(|t| t.percent())
                                 .unwrap_or(0f32),
                         )
@@ -137,7 +137,7 @@ fn style_blocks_system(
 pub(crate) fn scored_effect_system(
     mut cmd: Commands,
     time: Res<Time>,
-    scored: Query<(Entity, &mut Transform, &mut Timer), With<tile_states::Scored>>,
+    mut scored: Query<(Entity, &mut Transform, &mut Timer), With<tile_states::Scored>>,
 ) {
     scored.for_each_mut(|(e, mut t, mut timer)| {
         timer.tick(time.delta());

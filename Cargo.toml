@@ -13,15 +13,23 @@ name = "pz"
 serde = "*"
 ron = "*"
 anyhow = "*"
-bevy_asset_ron = "0.2"
+bevy_asset_ron = { git = "https://github.com/inodentry/bevy_asset_ron" }
 rand = {version = "*"}
-bevy_kira_audio = {version = "0.5", features = ["ogg"]}
-tracing = "0.1.28"
+tracing = "0.1.29"
+
 
 [dependencies.bevy]
 version = "0.5"
 default_features = false
 features = ["serialize", "render", "png", "x11", "bevy_wgpu", "bevy_winit"] 
 
+[dependencies.bevy_kira_audio]
+branch = "bevy_main"
+git = "https://github.com/piedoom/bevy_kira_audio"
+
 [dependencies.bevy_egui]
-version = "0.7"
+branch = "bevy-main"
+git = "https://github.com/DavidDomkar/bevy_egui"
+
+[patch.crates-io]
+bevy = { git = 'https://github.com/bevyengine/bevy', branch = "main" }

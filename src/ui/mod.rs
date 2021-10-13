@@ -19,7 +19,7 @@ pub(crate) use {game::*, menu::*};
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
-    fn build(&self, app: &mut bevy::prelude::AppBuilder) {
+    fn build(&self, app: &mut bevy::prelude::App) {
         app.init_resource::<Paused>()
             .init_resource::<MenuState>()
             .insert_resource(Bounds::default())

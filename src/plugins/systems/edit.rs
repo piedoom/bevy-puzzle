@@ -13,7 +13,7 @@ use super::{
 
 pub struct EditPlugin;
 impl Plugin for EditPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_event::<EditEvent>()
             .add_system_set(
                 SystemSet::on_enter(GameState::edit()).with_system(setup_system.system()),
@@ -43,7 +43,7 @@ fn setup_system(
 ) {
     let settings = settings_assets.get(settings_handle.clone()).unwrap();
     // Create camera if none exists. Reset the transform since the map may have changed
-    let camera_entity = cameras.single().map(|e| e).unwrap_or(cmd.spawn().id());
+    let camera_entity = cameras.get_single().map(|e| e).unwrap_or(cmd.spawn().id());
     let mut camera_bundle = OrthographicCameraBundle::new_2d();
     camera_bundle.orthographic_projection.scale = settings.camera_scale;
     // camera_bundle.global_transform = GlobalTransform::from(trans.clone());
@@ -57,7 +57,7 @@ fn setup_system(
         tile_styles::None,
         Transform::default(),
         GlobalTransform::default(),
-        Color::NONE,
+        TileColor(Color::NONE),
     ));
 }
 
@@ -70,7 +70,7 @@ fn preview_system(
     // check if preview tile (if it exists) is still under the cursor
     if cursor.is_changed() {
         preview
-            .single_mut()
+            .get_single_mut()
             .map(|mut t| {
                 let cur = cursor.global.round();
                 match cur == t.translation.round().truncate() {
@@ -89,7 +89,7 @@ fn preview_system(
                     tile_styles::None,
                     Transform::from_translation(pos),
                     GlobalTransform::from_translation(pos),
-                    Color::NONE,
+                    TileColor(Color::NONE),
                     PreviewTile,
                 ));
             });
@@ -109,7 +109,7 @@ fn process_events_system(
         match event {
             EditEvent::PlaceActive => {
                 preview
-                    .single()
+                    .get_single()
                     .map(|(e, t)| {
                         // ensure there is not already a tile here in the gameboard
                         if board
@@ -197,5 +197,5 @@ pub enum EditEvent {
 }
 
 /// Tile to be cleaned up at some point
-#[derive(Default)]
+#[derive(Default, Component)]
 struct PreviewTile;

@@ -15,7 +15,7 @@ use super::widgets::SelectAssetWidget;
 pub struct EditUiPlugin;
 
 impl Plugin for EditUiPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<UiState>().add_system_set(
             SystemSet::on_update(GameState::Edit).with_system(edit_menu_system.system()),
         );

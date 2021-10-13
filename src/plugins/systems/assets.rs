@@ -1,12 +1,13 @@
 use bevy::{asset::LoadState, prelude::*};
 use bevy_asset_ron::RonAssetPlugin;
+use bevy_kira_audio::AudioSource;
 
 use crate::{assets::SettingsAsset, prelude::*, GameState, PreloadingAssets};
 
 pub struct AssetPlugin;
 
 impl Plugin for AssetPlugin {
-    fn build(&self, app: &mut bevy::prelude::AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<PreloadingAssets>()
             .init_resource::<Handle<SettingsAsset>>()
             .init_resource::<Themes>()
@@ -97,7 +98,7 @@ fn init_load_system(
 
     let mut theme_from_description = |desc: &ThemeDescription| -> Theme {
         let load_audio = |path: &String, loading: &mut PreloadingAssets| {
-            let handle = assets.load(format!("sounds/{}.ogg", path).as_str());
+            let handle: Handle<AudioSource> = assets.load(format!("sounds/{}.ogg", path).as_str());
             loading.0.push(handle.clone_untyped());
             handle
         };

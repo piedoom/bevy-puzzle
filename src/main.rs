@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_kira_audio::AudioPlugin;
+// use bevy_egui::EguiPlugin;
+// use bevy_kira_audio::AudioPlugin;
 use pz::prelude::*;
 fn main() {
-    App::build()
+    App::new()
         .insert_resource(WindowDescriptor {
             cursor_visible: true,
             cursor_locked: false,
