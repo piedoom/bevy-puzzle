@@ -7,21 +7,12 @@
 mod systems;
 
 use bevy::{app::PluginGroupBuilder, prelude::PluginGroup};
-pub use systems::{
-    assets::AssetPlugin, core::CorePuzzlePlugin, edit::EditPlugin, input::InputPlugin,
-    style::StylePlugin,
-};
+pub use systems::{assets::AssetPlugin, core::CorePuzzlePlugin, edit::EditPlugin, Label};
 
-pub(crate) use systems::edit::EditEvent;
+pub struct PuzzleCorePlugins;
 
-pub struct FullPlugins;
-
-impl PluginGroup for FullPlugins {
+impl PluginGroup for PuzzleCorePlugins {
     fn build(&mut self, app: &mut PluginGroupBuilder) {
-        app.add(AssetPlugin)
-            .add(CorePuzzlePlugin)
-            .add(InputPlugin)
-            .add(StylePlugin)
-            .add(EditPlugin);
+        app.add(AssetPlugin).add(CorePuzzlePlugin).add(EditPlugin);
     }
 }

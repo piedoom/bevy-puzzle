@@ -1,3 +1,7 @@
+use std::path::PathBuf;
+
+use bevy::{math::Vec2, prelude::Handle};
+
 use crate::prelude::*;
 
 pub enum GameEvent {
@@ -12,4 +16,11 @@ pub enum GameEvent {
     },
     /// Resets the game and kicks us back to the main menu
     Loss,
+}
+
+pub enum EditEvent {
+    PlaceActive,
+    Clear(Vec2),
+    SaveCurrentMap { name: String, path: PathBuf },
+    RunCurrentMap { mode: Handle<GameMode> },
 }

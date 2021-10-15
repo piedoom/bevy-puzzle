@@ -8,7 +8,6 @@ pub mod components;
 mod events;
 mod plugins;
 pub mod resources;
-pub mod ui;
 pub mod utils;
 
 pub mod prelude {
@@ -87,7 +86,11 @@ impl GameState {
         Self::Main {
             mode: Default::default(),
             map: Default::default(),
-            theme: Default::default(),
+            theme: Theme {
+                name: Default::default(),
+                materials: Default::default(),
+                sfx: Default::default(),
+            },
         }
     }
 

@@ -1,9 +1,9 @@
-use crate::prelude::*;
 use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, style::Spacing, Vec2 as EVec2, Visuals},
     *,
 };
+use shared::prelude::*;
 
 use super::widgets::SelectAssetWidget;
 

@@ -3,10 +3,7 @@
 
 use std::{fs::File, io::Write, time::Duration};
 
-use crate::{
-    prelude::*,
-    ui::{Bounds, MenuState},
-};
+use crate::prelude::*;
 use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera, utils::Instant};
 use bevy_kira_audio::Audio;
 
@@ -25,7 +22,6 @@ impl Plugin for CorePuzzlePlugin {
             .init_resource::<NextUp>()
             .add_event::<GameEvent>()
             .add_system(process_events_system)
-            .add_system_set(SystemSet::on_exit(GameState::load()).with_system(set_default_system))
             .add_system_set(
                 SystemSet::on_enter(GameState::main())
                     .with_system(setup_system)
@@ -244,7 +240,7 @@ fn setup_system(
     mut bag: ResMut<Bag>,
     mut hold: ResMut<Hold>,
     mut next: ResMut<NextUp>,
-    mut bounds: ResMut<Bounds>,
+    mut bounds: ResMut<Bounds<Vec2>>,
     modes: Res<Assets<GameMode>>,
     maps: Res<Assets<Map>>,
     state: Res<State<GameState>>,
@@ -262,12 +258,12 @@ fn setup_system(
             panic!("Current GameMode provides no patterns")
         }
         // calculate screen position from already calculated world bounds
-        let rect = map.calculate_rect();
+        let mut rect = map.calculate_rect();
         // adjust to get corners of tiles instead of center
-        let expanded = rect.expand(0.5);
+        rect.expand(0.5);
         // this rect is now our world coordinates! Woohoo, easy.
-        bounds.world = expanded; // assign world coords for now
-                                 // lets get local screen coordinates from this world coordinates later on when we are positive a camera exists
+        bounds.world = rect; // assign world coords for now
+                             // lets get local screen coordinates from this world coordinates later on when we are positive a camera exists
 
         // Use unpadded bounds here just so we can successfully center the camera
         let center = rect.center();
@@ -333,30 +329,6 @@ fn placement_timer_tick_system(
         .ok();
 }
 
-/// Trigger any other stuff that needs to be done after the loading stage
-fn set_default_system(
-    mut menu_state: ResMut<MenuState>,
-    modes: Res<Assets<GameMode>>,
-    maps: Res<Assets<Map>>,
-) {
-    // The current mode is unset. Find the asset titled "default"
-    menu_state.mode = modes.iter().find_map(|(id, mode)| {
-        if mode.name == GameMode::default_name() {
-            Some(modes.get_handle(id))
-        } else {
-            None
-        }
-    });
-
-    menu_state.map = maps.iter().find_map(|(id, map)| {
-        if map.name == Map::default_name() {
-            Some(maps.get_handle(id))
-        } else {
-            None
-        }
-    });
-}
-
 fn process_events_system(
     mut cmd: Commands,
     mut events: ResMut<Events<GameEvent>>,
@@ -366,7 +338,6 @@ fn process_events_system(
     mut state: ResMut<State<GameState>>,
     mut step: ResMut<Step>,
     mut active: Query<(Entity, &mut Transform, &Pattern), With<ActiveEntity>>,
-    audio: Option<Res<Audio>>,
     modes: Res<Assets<GameMode>>,
     position_mode: Res<ActivePositionMode>,
     score: ResMut<Score>,
@@ -451,13 +422,6 @@ fn process_events_system(
                         transition::<tile_styles::Hover, tile_styles::None>(&mut cmd, e);
                         cmd.entity(e).insert(color.clone());
                     });
-
-                    // play a sound if we have that ability
-                    if let GameState::Main { theme, .. } = &state.current() {
-                        if let Some(audio) = &audio {
-                            audio.play(theme.sfx.place.clone());
-                        }
-                    }
 
                     // This check is needed in case the event is processed after a change that resets our next piece
                     if let Some(pattern) = pattern_assets.get(next.clone()) {

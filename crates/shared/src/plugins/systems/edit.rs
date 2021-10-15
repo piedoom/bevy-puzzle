@@ -6,10 +6,7 @@ use bevy::{prelude::*, render::camera::Camera};
 
 use crate::prelude::*;
 
-use super::{
-    core::{destroy_map_system, reset_game_system},
-    input::active_piece_position_system,
-};
+use super::core::{destroy_map_system, reset_game_system};
 
 pub struct EditPlugin;
 impl Plugin for EditPlugin {
@@ -19,9 +16,7 @@ impl Plugin for EditPlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::edit())
                     .with_system(preview_system)
-                    .with_system(active_piece_position_system)
-                    .with_system(process_events_system)
-                    .with_system(edit_input_system),
+                    .with_system(process_events_system),
             )
             .add_system_set(
                 SystemSet::on_exit(GameState::edit())
@@ -169,29 +164,8 @@ fn current_tiles_to_vec(
         .collect()
 }
 
-fn edit_input_system(
-    mut events: EventWriter<EditEvent>,
-    input: Res<Input<MouseButton>>,
-    cursor: Res<CursorPosition>,
-) {
-    if input.pressed(MouseButton::Left) {
-        events.send(EditEvent::PlaceActive);
-    }
-
-    if input.pressed(MouseButton::Right) {
-        events.send(EditEvent::Clear(cursor.global));
-    }
-}
-
 fn edit_cleanup_system(mut cmd: Commands, active: Query<Entity, With<ActiveEntity>>) {
     // do anything specific to cleaning up the edit mode here
-}
-
-pub enum EditEvent {
-    PlaceActive,
-    Clear(Vec2),
-    SaveCurrentMap { name: String, path: PathBuf },
-    RunCurrentMap { mode: Handle<GameMode> },
 }
 
 /// Tile to be cleaned up at some point

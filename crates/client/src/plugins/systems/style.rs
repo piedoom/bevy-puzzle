@@ -1,7 +1,5 @@
-use crate::prelude::*;
 use bevy::prelude::*;
-
-use super::Label;
+use shared::prelude::*;
 
 pub struct StylePlugin;
 

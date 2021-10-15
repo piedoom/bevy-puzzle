@@ -1,12 +1,10 @@
 pub(crate) mod assets;
 pub(crate) mod core;
 pub(crate) mod edit;
-pub(crate) mod input;
-pub(crate) mod style;
 use bevy::ecs::schedule::SystemLabel;
 
 #[derive(SystemLabel, Debug, Clone, Hash, PartialEq, Eq)]
-pub(crate) enum Label {
+pub enum Label {
     /// The first stage (gathering input)
     Listen,
     /// The second stage (moving, modifying entities)

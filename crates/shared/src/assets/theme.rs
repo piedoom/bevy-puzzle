@@ -72,7 +72,7 @@ impl AssetLoader for ThemeLoader {
     }
 }
 impl Theme {
-    pub(crate) fn material_from_color(&self, color: &super::PatternColor) -> Handle<ColorMaterial> {
+    pub fn material_from_color(&self, color: &super::PatternColor) -> Handle<ColorMaterial> {
         match color {
             super::PatternColor::Red => self.materials.red.clone(),
             super::PatternColor::Orange => self.materials.orange.clone(),

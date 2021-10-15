@@ -2,9 +2,9 @@
 use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
 use bevy_kira_audio::Audio;
 
-use crate::prelude::*;
+use shared::prelude::*;
 
-use super::Label;
+use crate::PlaySfxEvent;
 
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
@@ -22,6 +22,12 @@ impl Plugin for InputPlugin {
                     .with_system(click_commit_system)
                     .with_system(update_hovered_system)
                     .with_system(active_piece_position_system)
+                    .label(Label::Listen),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::edit())
+                    .with_system(active_piece_position_system)
+                    .with_system(edit_input_system)
                     .label(Label::Listen),
             );
     }
@@ -61,10 +67,10 @@ fn get_cursor_position_system(
 
 fn rotate_active_system(
     mut active: Query<&mut Transform, With<ActiveEntity>>,
+    mut sfx: EventWriter<PlaySfxEvent>,
     state: Res<State<GameState>>,
     keyboard: Res<Input<KeyCode>>,
     modes: Res<Assets<GameMode>>,
-    audio: Option<Res<Audio>>,
 ) {
     if let GameState::Main { mode, .. } = state.current() {
         let mode = modes.get(mode.clone()).unwrap();
@@ -90,9 +96,7 @@ fn rotate_active_system(
                     .ok();
 
                 if let GameState::Main { theme, .. } = &state.current() {
-                    if let Some(audio) = &audio {
-                        audio.play(theme.sfx.grip.clone());
-                    }
+                    sfx.send(PlaySfxEvent::new(theme.sfx.grip.clone()));
                 }
             }
         }
@@ -101,23 +105,21 @@ fn rotate_active_system(
 
 fn add_to_hold_system(
     mut hold: ResMut<Hold>,
+    mut events: EventWriter<GameEvent>,
+    mut sfx: EventWriter<PlaySfxEvent>,
     unswappable: Query<&Unswappable>,
     active_pattern: Query<&Pattern, With<ActiveEntity>>,
     keyboard: Res<Input<KeyCode>>,
     patterns: Res<Assets<Pattern>>,
     next_up: Res<NextUp>,
     state: Res<State<GameState>>,
-    audio: Option<Res<Audio>>,
-    mut events: EventWriter<GameEvent>,
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
         let pattern = hold.swap(active_pattern.get_single().unwrap().clone());
         let pattern = pattern.unwrap_or(patterns.get(next_up.clone()).unwrap().clone());
         if let GameState::Main { theme, .. } = &state.current() {
-            if let Some(audio) = &audio {
-                audio.play(theme.sfx.swap.clone());
-            }
+            sfx.send(PlaySfxEvent::new(theme.sfx.swap.clone()));
         }
         events.send(GameEvent::SetActivePattern {
             pattern,
@@ -129,10 +131,15 @@ fn add_to_hold_system(
 /// Commit a piece on click. Failure should not end in a loss.
 fn click_commit_system(
     mut events: EventWriter<GameEvent>,
+    mut sfx: EventWriter<PlaySfxEvent>,
+    state: Res<State<GameState>>,
     input: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
     if input.just_pressed(MouseButton::Left) || keyboard.just_pressed(KeyCode::Space) {
+        if let GameState::Main { theme, .. } = &state.current() {
+            sfx.send(PlaySfxEvent::new(theme.sfx.place.clone()));
+        }
         events.send(GameEvent::CommitActive {
             loss_on_failure: false,
         });
@@ -226,36 +233,6 @@ fn update_hovered_system(
         .ok();
 }
 
-pub(crate) fn active_piece_position_system(
-    mut active: Query<&mut Transform, With<ActiveEntity>>,
-    position_mode: Res<ActivePositionMode>,
-    cursor: Res<CursorPosition>,
-    keyboard: Res<Input<KeyCode>>,
-) {
-    match *position_mode {
-        ActivePositionMode::Keyboard => {
-            let move_delta = keyboard.get_just_pressed().fold(Vec2::ZERO, |acc, key| {
-                acc + match key {
-                    KeyCode::Up => Vec2::Y,
-                    KeyCode::Down => -Vec2::Y,
-                    KeyCode::Right => Vec2::X,
-                    KeyCode::Left => -Vec2::X,
-                    _ => Vec2::ZERO,
-                }
-            });
-            active.for_each_mut(|mut transform| {
-                transform.translation += move_delta.extend(0f32);
-            });
-        }
-        ActivePositionMode::Mouse => {
-            active.for_each_mut(|mut transform| {
-                transform.translation.x = cursor.global.x;
-                transform.translation.y = cursor.global.y;
-            });
-        }
-    }
-}
-
 fn pause_system(mut state: ResMut<State<GameState>>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.just_pressed(KeyCode::Escape) {
         match state.current() {
@@ -316,4 +293,48 @@ fn pause_on_lose_focus_system(mut state: ResMut<State<GameState>>, windows: Res<
             state.push(GameState::Pause).ok();
         }
     });
+}
+
+pub fn active_piece_position_system(
+    mut active: Query<&mut Transform, With<ActiveEntity>>,
+    position_mode: Res<ActivePositionMode>,
+    cursor: Res<CursorPosition>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    match *position_mode {
+        ActivePositionMode::Keyboard => {
+            let move_delta = keyboard.get_just_pressed().fold(Vec2::ZERO, |acc, key| {
+                acc + match key {
+                    KeyCode::Up => Vec2::Y,
+                    KeyCode::Down => -Vec2::Y,
+                    KeyCode::Right => Vec2::X,
+                    KeyCode::Left => -Vec2::X,
+                    _ => Vec2::ZERO,
+                }
+            });
+            active.for_each_mut(|mut transform| {
+                transform.translation += move_delta.extend(0f32);
+            });
+        }
+        ActivePositionMode::Mouse => {
+            active.for_each_mut(|mut transform| {
+                transform.translation.x = cursor.global.x;
+                transform.translation.y = cursor.global.y;
+            });
+        }
+    }
+}
+
+fn edit_input_system(
+    mut events: EventWriter<EditEvent>,
+    input: Res<Input<MouseButton>>,
+    cursor: Res<CursorPosition>,
+) {
+    if input.pressed(MouseButton::Left) {
+        events.send(EditEvent::PlaceActive);
+    }
+
+    if input.pressed(MouseButton::Right) {
+        events.send(EditEvent::Clear(cursor.global));
+    }
 }

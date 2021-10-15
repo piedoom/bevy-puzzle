@@ -1,5 +1,4 @@
 use bevy::{asset::*, prelude::*, reflect::TypeUuid};
-use bevy_egui::egui::Color32;
 
 #[derive(Default, Debug, Clone, TypeUuid, serde::Deserialize, Component)]
 #[uuid = "39cadc56-aa9c-4543-8640-a018b74b505b"]
@@ -26,32 +25,32 @@ pub enum PatternColor {
 impl From<&str> for PatternColor {
     fn from(s: &str) -> Self {
         match s {
-            "red" => Self::Red,
-            "orange" => Self::Orange,
-            "yellow" => Self::Yellow,
-            "lime" => Self::Lime,
-            "green" => Self::Green,
-            "light blue" => Self::LightBlue,
-            "blue" => Self::Blue,
-            "indigo" => Self::Indigo,
-            "purple" => Self::Purple,
-            _ => Self::Red,
+            "red" => PatternColor::Red,
+            "orange" => PatternColor::Orange,
+            "yellow" => PatternColor::Yellow,
+            "lime" => PatternColor::Lime,
+            "green" => PatternColor::Green,
+            "light blue" => PatternColor::LightBlue,
+            "blue" => PatternColor::Blue,
+            "indigo" => PatternColor::Indigo,
+            "purple" => PatternColor::Purple,
+            _ => PatternColor::Red,
         }
     }
 }
 
-impl Into<Color32> for PatternColor {
-    fn into(self) -> Color32 {
+impl Into<[u8; 4]> for PatternColor {
+    fn into(self) -> [u8; 4] {
         match self {
-            PatternColor::Red => Color32::from_rgb(235, 71, 111),
-            PatternColor::Orange => Color32::from_rgb(250, 103, 56),
-            PatternColor::Yellow => Color32::from_rgb(255, 210, 51),
-            PatternColor::Lime => Color32::from_rgb(197, 245, 61),
-            PatternColor::Green => Color32::from_rgb(73, 233, 137),
-            PatternColor::LightBlue => Color32::from_rgb(61, 223, 245),
-            PatternColor::Blue => Color32::from_rgb(51, 145, 255),
-            PatternColor::Indigo => Color32::from_rgb(93, 89, 255),
-            PatternColor::Purple => Color32::from_rgb(120, 61, 245),
+            PatternColor::Red => [235, 71, 111, 255],
+            PatternColor::Orange => [250, 103, 56, 255],
+            PatternColor::Yellow => [255, 210, 51, 255],
+            PatternColor::Lime => [197, 245, 61, 255],
+            PatternColor::Green => [73, 233, 137, 255],
+            PatternColor::LightBlue => [61, 223, 245, 255],
+            PatternColor::Blue => [51, 145, 255, 255],
+            PatternColor::Indigo => [93, 89, 255, 255],
+            PatternColor::Purple => [120, 61, 245, 255],
         }
     }
 }
@@ -102,9 +101,10 @@ impl Pattern {
                 e => warn!("unrecognized char \"{}\" in pattern", e),
             };
         });
+        let c = PatternColor::from(color);
         Self {
             name: name.into(),
-            color: PatternColor::from(color),
+            color: c,
             blocks,
         }
     }

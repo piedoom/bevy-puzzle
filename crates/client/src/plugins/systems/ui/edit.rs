@@ -1,15 +1,13 @@
 use std::path::PathBuf;
 
-use crate::{plugins::EditEvent, prelude::*};
 use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, Align2},
     EguiContext,
 };
+use shared::prelude::*;
 
-use crate::GameState;
-
-use super::widgets::SelectAssetWidget;
+use super::{widgets::SelectAssetWidget, MenuState};
 
 #[derive(Default)]
 pub struct EditUiPlugin;
@@ -17,6 +15,7 @@ pub struct EditUiPlugin;
 impl Plugin for EditUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<UiState>()
+            .add_system_set(SystemSet::on_exit(GameState::load()).with_system(set_default_system))
             .add_system_set(SystemSet::on_update(GameState::Edit).with_system(edit_menu_system));
     }
 }
@@ -56,4 +55,27 @@ fn edit_menu_system(
                 });
             }
         });
+}
+
+fn set_default_system(
+    mut menu_state: ResMut<MenuState>,
+    modes: Res<Assets<GameMode>>,
+    maps: Res<Assets<Map>>,
+) {
+    // The current mode is unset. Find the asset titled "default"
+    menu_state.mode = modes.iter().find_map(|(id, mode)| {
+        if mode.name == GameMode::default_name() {
+            Some(modes.get_handle(id))
+        } else {
+            None
+        }
+    });
+
+    menu_state.map = maps.iter().find_map(|(id, map)| {
+        if map.name == Map::default_name() {
+            Some(maps.get_handle(id))
+        } else {
+            None
+        }
+    });
 }

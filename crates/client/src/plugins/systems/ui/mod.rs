@@ -1,8 +1,8 @@
 //! This is where various elements of the UI including widgets exist
 
-use crate::GameState;
 use bevy::prelude::*;
 use bevy_egui::{egui::Visuals, EguiContext};
+use shared::prelude::*;
 
 use self::edit::EditUiPlugin;
 
@@ -22,7 +22,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.init_resource::<Paused>()
             .init_resource::<MenuState>()
-            .insert_resource(Bounds::default())
+            .insert_resource(Bounds::<Vec2>::default())
             .add_system_set(
                 SystemSet::on_update(GameState::menu())
                     .with_system(ui_menu_system)

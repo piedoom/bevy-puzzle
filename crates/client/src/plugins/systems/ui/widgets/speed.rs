@@ -1,8 +1,7 @@
 //! Widget that shows the speed of the mode timer, and how it increases over time
 
 use bevy_egui::egui::*;
-
-use crate::prelude::{GameMode, PlacementTimer, Step};
+use shared::prelude::*;
 
 pub struct SpeedWidget<'a> {
     pub mode: &'a GameMode,

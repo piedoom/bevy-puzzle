@@ -1,7 +1,6 @@
-use bevy::math::Vec2;
+use bevy::{math::Vec2, prelude::Color};
 use bevy_egui::{egui::Vec2 as EVec2, egui::*};
-
-use crate::assets::Pattern;
+use shared::prelude::*;
 
 /// Draws an arbitrary number of tiles with color on a grid
 #[derive(Default)]
@@ -16,7 +15,10 @@ impl<'a> PatternWidget<'a> {
             pattern: pattern,
             size: None,
             color: pattern
-                .map(|x| x.color.clone().into())
+                .map(|x: &Pattern| {
+                    let u: [u8; 4] = x.clone().color.into();
+                    Color32::from_rgb(u[0], u[1], u[2])
+                })
                 .unwrap_or(Color32::WHITE),
         }
     }

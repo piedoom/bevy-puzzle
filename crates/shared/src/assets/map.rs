@@ -1,5 +1,5 @@
-use bevy::reflect::TypeUuid;
-use bevy_egui::egui::{self, Pos2};
+use bevy::{math::Vec2, reflect::TypeUuid};
+// use bevy_egui::egui::{self, Pos2};
 
 #[derive(
     serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Default, Debug, Clone, Eq, Hash,
@@ -22,7 +22,9 @@ impl Map {
         "default"
     }
 
-    pub fn calculate_rect(&self) -> egui::Rect {
+    /// Spits out a bevy thing so we don't need to import EGUI into our main lib. You should be
+    /// able to make this into an egui thing later. Order is `(Bottom left, Top right)`.
+    pub fn calculate_rect(&self) -> (Vec2, Vec2) {
         let mut x = self.pattern.clone();
         x.sort_by(|(xa, _), (xb, _)| xa.cmp(xb));
         let mut y = self.pattern.clone();
@@ -33,9 +35,6 @@ impl Map {
         let top = y.last().unwrap().1 as f32;
         let bottom = y.first().unwrap().1 as f32;
 
-        egui::Rect {
-            min: Pos2::from((left, bottom)),
-            max: Pos2::from((right, top)),
-        }
+        (Vec2::new(left, bottom), Vec2::new(right, top))
     }
 }

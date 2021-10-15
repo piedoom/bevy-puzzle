@@ -3,23 +3,9 @@ use bevy::render::camera::{Camera, OrthographicProjection};
 use bevy_egui::egui::{self, *};
 use bevy_egui::{EguiContext, EguiSettings};
 
-use crate::assets::*;
-use crate::prelude::*;
-use crate::ui::widgets::PatternWidget;
+use shared::prelude::*;
 
-use super::widgets::SpeedWidget;
-
-pub(crate) struct Bounds {
-    pub(crate) world: egui::Rect,
-}
-
-impl Default for Bounds {
-    fn default() -> Self {
-        Self {
-            world: egui::Rect::NOTHING,
-        }
-    }
-}
+use super::widgets::{PatternWidget, SpeedWidget};
 
 /// Draw the UI for our main game state
 pub(crate) fn ui_main_system(
@@ -33,7 +19,7 @@ pub(crate) fn ui_main_system(
     next_up: Res<NextUp>,
     patterns: Res<Assets<Pattern>>,
     state: Res<State<GameState>>,
-    bounds: Res<Bounds>,
+    bounds: Res<Bounds<bevy::math::Vec2>>,
     modes: Res<Assets<GameMode>>,
     ui_settings: Res<EguiSettings>,
 ) {
@@ -102,8 +88,8 @@ pub(crate) fn ui_main_system(
                     r
                 };
 
-                let min_raw = pos_to_pixels(min_world);
-                let max_raw = pos_to_pixels(max_world);
+                let min_raw = pos_to_pixels(Pos2::new(min_world.x, min_world.y));
+                let max_raw = pos_to_pixels(Pos2::new(max_world.x, max_world.y));
 
                 let min = Pos2::new(min_raw.x, height - min_raw.y);
                 let max = Pos2::new(max_raw.x, height - max_raw.y);

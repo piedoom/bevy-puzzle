@@ -2745,7 +2745,6 @@ dependencies = [
  "anyhow",
  "bevy",
  "bevy_asset_ron",
- "bevy_egui",
  "bevy_kira_audio",
  "rand",
  "ron",

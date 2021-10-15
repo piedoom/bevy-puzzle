@@ -1,8 +1,7 @@
+use crate::{assets::SettingsAsset, prelude::*, GameState, PreloadingAssets};
 use bevy::{asset::LoadState, prelude::*};
 use bevy_asset_ron::RonAssetPlugin;
 use bevy_kira_audio::AudioSource;
-
-use crate::{assets::SettingsAsset, prelude::*, GameState, PreloadingAssets};
 
 pub struct AssetPlugin;
 
