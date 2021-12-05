@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, style::Spacing, Vec2 as EVec2, Visuals},
+    egui::{self, style::Spacing, Vec2 as EVec2},
     *,
 };
 use shared::prelude::*;
@@ -18,6 +18,7 @@ pub struct MenuState {
 }
 
 pub(crate) fn ui_menu_system(
+    mut cmd: Commands,
     mut state: ResMut<State<GameState>>,
     mut menu_state: ResMut<MenuState>,
     mut settings_assets: ResMut<Assets<SettingsAsset>>,
@@ -106,11 +107,11 @@ pub(crate) fn ui_menu_system(
             // Start game button
             ui.horizontal(|ui| {
                 if ui.button("Start").clicked() {
+                    cmd.insert_resource(menu_state.theme.as_ref().unwrap().clone());
                     state
                         .set(GameState::Main {
                             mode: menu_state.mode.as_ref().unwrap().clone(),
                             map: menu_state.map.as_ref().unwrap().clone(),
-                            theme: menu_state.theme.as_ref().unwrap().clone(),
                         })
                         .ok();
                 }

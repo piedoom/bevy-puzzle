@@ -1,7 +1,6 @@
 //! This is where various elements of the UI including widgets exist
 
 use bevy::prelude::*;
-use bevy_egui::{egui::Visuals, EguiContext};
 use shared::prelude::*;
 
 use self::edit::EditUiPlugin;

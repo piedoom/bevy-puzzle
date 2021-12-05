@@ -58,7 +58,7 @@ fn animate_active_system(
 fn style_blocks_system(
     mut cmd: Commands,
     mut transforms: Query<&mut Transform>,
-    state: Res<State<GameState>>,
+    theme: Option<Res<Theme>>,
     full: Query<(Entity, &PatternColor), Added<tile_states::Full>>,
     empty: Query<
         Entity,
@@ -102,7 +102,7 @@ fn style_blocks_system(
         ),
     >,
 ) {
-    if let GameState::Main { theme, .. } = state.current() {
+    if let Some(theme) = theme {
         full.iter()
             .chain(uninvalidated.iter())
             .for_each(|(entity, color)| {

@@ -1,10 +1,7 @@
 //! Defines a list of maps, modes, and other metadata that composes the actual game from our separate pieces
 
+use bevy::reflect::TypeUuid;
 use std::time::Duration;
-
-use bevy::{prelude::*, reflect::TypeUuid};
-
-use super::{GameMode, Map};
 
 #[derive(
     serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Default, Debug, Clone, Eq, Hash,

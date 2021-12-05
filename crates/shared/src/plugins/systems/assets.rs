@@ -73,15 +73,14 @@ fn pre_load_assets_loaded_transition_system(
 }
 
 fn init_load_system(
+    mut cmd: Commands,
     mut state: ResMut<State<GameState>>,
     mut settings_handle: ResMut<Handle<SettingsAsset>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut loading: ResMut<PreloadingAssets>,
     mut themes: ResMut<Themes>,
-    mut campaigns: ResMut<Campaigns>,
     assets: Res<AssetServer>,
     theme_assets: Res<Assets<ThemeDescription>>,
-    campaign_assets: Res<Assets<CampaignDescription>>,
 ) {
     // load our settings file
     *settings_handle = assets.load("settings.rfg");
@@ -136,6 +135,16 @@ fn init_load_system(
         .iter()
         .map(|(_, theme)| theme_from_description(theme))
         .collect();
+
+    // set the default theme resource
+    cmd.insert_resource(
+        themes
+            .iter()
+            .find(|x| x.name == "default")
+            .expect("no default asset. what did you do with it?")
+            // it's fine to clone cause this is just like a bunch of handles anyways i think
+            .clone(),
+    );
 
     // load game modes
     let mode_handles = &mut assets.load_folder("modes").expect("Could not load modes");

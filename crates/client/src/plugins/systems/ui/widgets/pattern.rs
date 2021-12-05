@@ -1,4 +1,4 @@
-use bevy::{math::Vec2, prelude::Color};
+use bevy::math::Vec2;
 use bevy_egui::{egui::Vec2 as EVec2, egui::*};
 use shared::prelude::*;
 

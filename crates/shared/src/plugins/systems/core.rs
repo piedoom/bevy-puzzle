@@ -5,7 +5,6 @@ use std::{fs::File, io::Write, time::Duration};
 
 use crate::prelude::*;
 use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera, utils::Instant};
-use bevy_kira_audio::Audio;
 
 use super::Label;
 
@@ -73,7 +72,7 @@ fn scorer_system(
                             cmp_translation.y += y as f32;
                             if let Some((entity, _)) = full_tiles
                                 .iter()
-                                .find(|(_, t)| Vec2::from(t.translation) == cmp_translation)
+                                .find(|(_, t)| t.translation.truncate() == cmp_translation)
                             {
                                 possible_tiles.push(entity);
                             } else {
@@ -477,10 +476,10 @@ fn process_events_system(
 pub(crate) fn reset_game_system(
     mut cmd: Commands,
     mut score: ResMut<Score>,
-    mut active: Query<Entity, With<ActiveEntity>>,
     mut next: ResMut<NextUp>,
     mut bag: ResMut<Bag>,
     mut step: ResMut<Step>,
+    active: Query<Entity, With<ActiveEntity>>,
     cameras: Query<Entity, With<Camera>>,
 ) {
     // Clean up
@@ -490,10 +489,7 @@ pub(crate) fn reset_game_system(
     *bag = Bag::default();
     cmd.remove_resource::<CurrentLevel>();
     step.reset();
-    active
-        .get_single_mut()
-        .map(|entity| cmd.entity(entity).despawn_recursive())
-        .ok();
+    active.for_each(|entity| cmd.entity(entity).despawn_recursive());
 }
 
 /// Destroy the game board

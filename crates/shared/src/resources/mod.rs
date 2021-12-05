@@ -4,7 +4,6 @@ mod campaign;
 mod input;
 mod leaderboard;
 mod tile;
-
 pub use {campaign::*, input::*, leaderboard::*, tile::*};
 
 #[derive(Default)]
@@ -52,8 +51,7 @@ impl Step {
             TimerRate::Progressive {
                 start_rate,
                 end_rate,
-                steps,
-                delay,
+                ..
             } => {
                 // map step to range of values
                 let percent = self.percent(&mode).unwrap();

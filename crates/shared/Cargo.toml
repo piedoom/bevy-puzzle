@@ -1,9 +1,8 @@
 [package]
-resolver = "2"
 name = "shared"
 version = "0.1.0"
 authors = ["doomy <2640792-_doomy@users.noreply.gitlab.com>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 name = "shared"
@@ -26,6 +25,3 @@ features = ["serialize", "render", "png", "x11", "bevy_wgpu", "bevy_winit"]
 [dependencies.bevy_kira_audio]
 branch = "bevy_main"
 git = "https://github.com/piedoom/bevy_kira_audio"
-
-[patch.crates-io]
-bevy = { git = 'https://github.com/bevyengine/bevy', branch = "main" }

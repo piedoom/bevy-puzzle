@@ -19,13 +19,13 @@ pub(crate) fn ui_main_system(
     next_up: Res<NextUp>,
     patterns: Res<Assets<Pattern>>,
     state: Res<State<GameState>>,
-    bounds: Res<Bounds<bevy::math::Vec2>>,
+    //  bounds: Res<Bounds<bevy::math::Vec2>>,
     modes: Res<Assets<GameMode>>,
     ui_settings: Res<EguiSettings>,
 ) {
     // get current mode
     if let GameState::Main { mode, .. } = state.current() {
-        if let Ok((camera, projection, camera_transform)) = camera.get_single() {
+        if let Ok((camera, _projection, camera_transform)) = camera.get_single() {
             // cursor
             // get active position
             active
@@ -65,37 +65,37 @@ pub(crate) fn ui_main_system(
                 })
                 .ok();
 
-            let height = windows
-                .get_primary()
-                .map(|w| w.height())
-                .unwrap_or_default();
+            // let height = windows
+            //     .get_primary()
+            //     .map(|w| w.height())
+            //     .unwrap_or_default();
 
-            // Score and other ui stuff
-            // Get the extents with on-screen pixel values so we can add UI stuff aligned to the gameboard.
-            let extents = {
-                let min_world = bounds.world.left_bottom();
-                let max_world = bounds.world.right_top();
+            // // Score and other ui stuff
+            // // Get the extents with on-screen pixel values so we can add UI stuff aligned to the gameboard.
+            // // let extents = {
+            // //     let min_world = bounds.world.left_bottom();
+            // //     let max_world = bounds.world.right_top();
 
-                // // get the min and max in pixels. We use "raw" because in egui the y axis has to be flipped, which we do later on.
-                let trans = camera_transform.translation;
-                // offset from camera in game units that the target position is at
-                let pos_to_pixels = |pos: Pos2| -> Vec3 {
-                    let scalar = 1f32 / projection.scale;
-                    let unit_offset = trans - Vec3::new(pos.x, pos.y, 0f32);
-                    let mut r = unit_offset * scalar;
-                    // invert for egui
-                    r.y = height - r.y;
-                    r
-                };
+            //     // // get the min and max in pixels. We use "raw" because in egui the y axis has to be flipped, which we do later on.
+            //     let trans = camera_transform.translation;
+            //     // offset from camera in game units that the target position is at
+            //     let pos_to_pixels = |pos: Pos2| -> Vec3 {
+            //         let scalar = 1f32 / projection.scale;
+            //         let unit_offset = trans - Vec3::new(pos.x, pos.y, 0f32);
+            //         let mut r = unit_offset * scalar;
+            //         // invert for egui
+            //         r.y = height - r.y;
+            //         r
+            //     };
 
-                let min_raw = pos_to_pixels(Pos2::new(min_world.x, min_world.y));
-                let max_raw = pos_to_pixels(Pos2::new(max_world.x, max_world.y));
+            //     let min_raw = pos_to_pixels(Pos2::new(min_world.x, min_world.y));
+            //     let max_raw = pos_to_pixels(Pos2::new(max_world.x, max_world.y));
 
-                let min = Pos2::new(min_raw.x, height - min_raw.y);
-                let max = Pos2::new(max_raw.x, height - max_raw.y);
+            //     let min = Pos2::new(min_raw.x, height - min_raw.y);
+            //     let max = Pos2::new(max_raw.x, height - max_raw.y);
 
-                egui::Rect { min, max }
-            };
+            //     egui::Rect { min, max }
+            // };
 
             let mode = modes.get(mode.clone()).unwrap();
             egui::containers::Area::new("score")

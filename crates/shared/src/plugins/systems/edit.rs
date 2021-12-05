@@ -1,6 +1,6 @@
 //! Systems related to editing modes and levels
 
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{fs::File, io::Write};
 
 use bevy::{prelude::*, render::camera::Camera};
 
@@ -21,8 +21,7 @@ impl Plugin for EditPlugin {
             .add_system_set(
                 SystemSet::on_exit(GameState::edit())
                     .with_system(destroy_map_system)
-                    .with_system(reset_game_system)
-                    .with_system(edit_cleanup_system),
+                    .with_system(reset_game_system),
             );
     }
 }
@@ -94,7 +93,6 @@ fn process_events_system(
     mut events: EventReader<EditEvent>,
     mut state: ResMut<State<GameState>>,
     mut maps: ResMut<Assets<Map>>,
-    modes: Res<Assets<GameMode>>,
     preview: Query<(Entity, &GlobalTransform), With<PreviewTile>>,
     board: Query<(Entity, &GlobalTransform), With<GameBoard>>,
 ) {
@@ -139,10 +137,9 @@ fn process_events_system(
                     ..Default::default()
                 };
                 state
-                    .push(GameState::Main {
+                    .replace(GameState::Main {
                         mode: mode.clone(),
                         map: maps.add(map),
-                        theme: todo!(),
                     })
                     .ok();
             }
@@ -163,11 +160,6 @@ fn current_tiles_to_vec(
         })
         .collect()
 }
-
-fn edit_cleanup_system(mut cmd: Commands, active: Query<Entity, With<ActiveEntity>>) {
-    // do anything specific to cleaning up the edit mode here
-}
-
 /// Tile to be cleaned up at some point
 #[derive(Default, Component)]
 struct PreviewTile;

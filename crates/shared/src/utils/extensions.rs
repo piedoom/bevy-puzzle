@@ -51,3 +51,14 @@ where
         self.1
     }
 }
+
+pub trait F32Ext {
+    fn lerp(&self, other: f32, scalar: f32) -> f32;
+}
+
+impl F32Ext for f32 {
+    #[inline(always)]
+    fn lerp(&self, other: f32, scalar: f32) -> f32 {
+        self + (other - self) * scalar
+    }
+}

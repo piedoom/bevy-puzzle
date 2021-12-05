@@ -1,6 +1,5 @@
 //! Systems and other data structures related to obtaining user input and modifying the game in some way
 use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
-use bevy_kira_audio::Audio;
 
 use shared::prelude::*;
 
@@ -57,9 +56,9 @@ fn get_cursor_position_system(
                 // apply the camera transform
                 let pos_world =
                     camera_transform.compute_matrix() * proj.scale * p.extend(0.0).extend(1.0);
-                let pos_world = Vec2::from(pos_world);
+                let pos_world = pos_world.truncate().truncate();
                 *cursor_pos.local = *pos_world;
-                *cursor_pos.global = *(pos_world + Vec2::from(camera_transform.translation));
+                *cursor_pos.global = *(pos_world + camera_transform.translation.truncate());
             }
         }
     }
@@ -69,6 +68,7 @@ fn rotate_active_system(
     mut active: Query<&mut Transform, With<ActiveEntity>>,
     mut sfx: EventWriter<PlaySfxEvent>,
     state: Res<State<GameState>>,
+    theme: Option<Res<Theme>>,
     keyboard: Res<Input<KeyCode>>,
     modes: Res<Assets<GameMode>>,
 ) {
@@ -95,7 +95,7 @@ fn rotate_active_system(
                     })
                     .ok();
 
-                if let GameState::Main { theme, .. } = &state.current() {
+                if let Some(theme) = theme {
                     sfx.send(PlaySfxEvent::new(theme.sfx.grip.clone()));
                 }
             }
@@ -112,13 +112,13 @@ fn add_to_hold_system(
     keyboard: Res<Input<KeyCode>>,
     patterns: Res<Assets<Pattern>>,
     next_up: Res<NextUp>,
-    state: Res<State<GameState>>,
+    theme: Option<Res<Theme>>,
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
         let pattern = hold.swap(active_pattern.get_single().unwrap().clone());
         let pattern = pattern.unwrap_or(patterns.get(next_up.clone()).unwrap().clone());
-        if let GameState::Main { theme, .. } = &state.current() {
+        if let Some(theme) = theme {
             sfx.send(PlaySfxEvent::new(theme.sfx.swap.clone()));
         }
         events.send(GameEvent::SetActivePattern {
@@ -132,12 +132,12 @@ fn add_to_hold_system(
 fn click_commit_system(
     mut events: EventWriter<GameEvent>,
     mut sfx: EventWriter<PlaySfxEvent>,
-    state: Res<State<GameState>>,
+    theme: Option<Res<Theme>>,
     input: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
     if input.just_pressed(MouseButton::Left) || keyboard.just_pressed(KeyCode::Space) {
-        if let GameState::Main { theme, .. } = &state.current() {
+        if let Some(theme) = theme {
             sfx.send(PlaySfxEvent::new(theme.sfx.place.clone()));
         }
         events.send(GameEvent::CommitActive {

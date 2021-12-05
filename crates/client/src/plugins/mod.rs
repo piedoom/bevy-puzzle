@@ -1,9 +1,7 @@
 use bevy::prelude::*;
+use systems::*;
 
 mod systems;
-
-use shared::prelude::{ActiveEntity, ActivePositionMode, CursorPosition};
-use systems::*;
 
 pub struct PuzzleClientPlugins;
 

@@ -11,6 +11,9 @@ pub struct Level {
     pub mode: Handle<GameMode>,
     pub objective: Objective,
 }
+
+/// Because of how assets work currently, the asset ([`CampaignDescription`]) refers to strings of other assets
+/// which are then manually replaced and built into a ([`Campaign`]). `Campaigns` should be treated like an assets container.  
 pub type Campaigns = Vec<Campaign>;
 pub type CurrentLevel = Level;
 

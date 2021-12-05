@@ -15,8 +15,10 @@ pub struct EditUiPlugin;
 impl Plugin for EditUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<UiState>()
-            .add_system_set(SystemSet::on_exit(GameState::load()).with_system(set_default_system))
-            .add_system_set(SystemSet::on_update(GameState::Edit).with_system(edit_menu_system));
+            .add_system_set(
+                SystemSet::on_exit(GameState::load()).with_system(set_default_ui_data_system),
+            )
+            .add_system_set(SystemSet::on_update(GameState::edit()).with_system(edit_menu_system));
     }
 }
 
@@ -57,7 +59,7 @@ fn edit_menu_system(
         });
 }
 
-fn set_default_system(
+fn set_default_ui_data_system(
     mut menu_state: ResMut<MenuState>,
     modes: Res<Assets<GameMode>>,
     maps: Res<Assets<Map>>,
