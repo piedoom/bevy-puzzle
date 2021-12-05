@@ -20,14 +20,14 @@ where
     T: Asset + TypeUuid + Display,
 {
     fn ui(self, ui: &mut bevy_egui::egui::Ui) -> bevy_egui::egui::Response {
-        let handle = self.selection.clone().unwrap_or(Handle::default());
+        let handle = self.selection.clone().unwrap_or_default();
         let maybe_asset = self.assets.get(handle.clone());
         ui.vertical(|ui| {
             egui::ComboBox::from_label(self.name)
                 .selected_text(
                     maybe_asset
                         .map(|t| format!("{}", t))
-                        .unwrap_or(String::from("None selected")),
+                        .unwrap_or_else(|| String::from("None selected")),
                 )
                 .show_ui(ui, |ui| {
                     for (id, t) in self.assets.iter() {

@@ -103,7 +103,7 @@ pub(crate) fn ui_main_system(
                 //.fixed_pos(extents.left_top() + egui::Vec2::new(0f32, -32f32))
                 .show(ctx.ctx(), |ui| {
                     ui.vertical(|ui| {
-                        ui.heading(format!("Score: {}", score.to_string()));
+                        ui.heading(format!("Score: {}", *score));
                         // speed widget
                         let timer = active.get_single().map(|(_, t, ..)| t).ok();
                         ui.add(SpeedWidget {

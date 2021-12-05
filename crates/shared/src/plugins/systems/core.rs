@@ -100,10 +100,11 @@ fn scorer_system(
                         // set the start position
                         next_pos = t.board_position();
                         // loop while this bool is true lol
-                        while in_progress {
-                            // advance position to the next position
+                        loop {
+                            if !in_progress {
+                                break;
+                            }
                             next_pos += dir;
-                            // If the tile at the next position is a tile, check to see what kind
                             if let Some((e, _, is_full)) =
                                 board.iter().find(|(_, next_transform, _)| {
                                     next_pos == next_transform.board_position()
@@ -128,23 +129,18 @@ fn scorer_system(
                     scored
                 };
 
-                // check to see which tiles are 1 away from null (on an edge)
-                // do this by seeing if a full tile minus 1x 1y is *not* a `GameBoard` spot board. This only gets one side,
-                // but that's fine - because this "side" is necessary for all possible combinations and will not be exlucded by checking all 4 directions,
-                // we don't need to check for border tiles on the other two sides, just one. That makes it easy to just work in one direction too.
+                // map all board positions into a vec for easier comparison (this is probs slow lol)
+                let board_positions: Vec<Vec2> =
+                    board.iter().map(|(_, t, _)| t.board_position()).collect();
+
+                // check to see which tiles are on the edge (1 away from null)
+                // do this by seeing if a full tile minus 1x 1y is *not* a `GameBoard` spot board.
                 let border_tiles = |direction: Vec2| -> Vec<Entity> {
                     full_tiles
                         .iter()
                         .filter_map(|(e, t)| {
-                            // Get the current posiion of the tile currently
-                            let cur = t.board_position();
-                            // map all board positions into a vec for easier comparison (this is probs slow lol)
-                            // the decision to go negative here is arbitrary (but it will make the bigger part of this code use positive numbers which is cool)
-                            let positions: Vec<Vec2> =
-                                board.iter().map(|(_, t, _)| t.board_position()).collect();
                             // if the position is not contained in the board, this is an edge
-                            if !positions.contains(&(cur - direction)) {
-                                // left border
+                            if !board_positions.contains(&(t.board_position() - direction)) {
                                 Some(e)
                             } else {
                                 None
@@ -161,6 +157,8 @@ fn scorer_system(
                     ScoreDirection::Horizontal => border_tiles(Vec2::X).iter().for_each(|entity| {
                         scoring_tiles.append(&mut score_line_recursive(*entity, Vec2::X));
                     }),
+                    // This only gets two sides,
+                    // but that's fine - because these sides are necessary for all possible combinations and will not be exlucded by checking all 4 sides.
                     ScoreDirection::Both => {
                         border_tiles(Vec2::Y).iter().for_each(|entity| {
                             scoring_tiles.append(&mut score_line_recursive(*entity, Vec2::Y));
@@ -187,15 +185,14 @@ fn scorer_system(
                 .insert(tile_states::Empty)
                 .insert(tile_styles::None);
             // spawn a scoring block
-            let mut transform = transforms
+            let mut transform = *transforms
                 .get(e)
-                .expect("Could not get transform with this entity")
-                .clone();
+                .expect("Could not get transform with this entity");
             transform.translation.z = 2f32;
             cmd.spawn_bundle((
                 Tile,
-                GlobalTransform::from(transform.clone()),
-                transform.clone(),
+                GlobalTransform::from(transform),
+                transform,
                 tile_states::Scored,
                 Timer::new(Duration::from_millis(1000), false),
             ));
@@ -253,7 +250,7 @@ fn setup_system(
     if let GameState::Main { mode, map, .. } = state.current() {
         let mode = modes.get(mode.clone()).unwrap();
         let map = maps.get(map.clone()).unwrap();
-        if mode.patterns.len() == 0 {
+        if mode.patterns.is_empty() {
             panic!("Current GameMode provides no patterns")
         }
         // calculate screen position from already calculated world bounds
@@ -267,14 +264,14 @@ fn setup_system(
         // Use unpadded bounds here just so we can successfully center the camera
         let center = rect.center();
         // Create camera if none exists. Reset the transform since the map may have changed
-        let camera_entity = cameras.get_single().map(|e| e).unwrap_or(cmd.spawn().id());
+        let camera_entity = cameras.get_single().unwrap_or_else(|_| cmd.spawn().id());
 
         // Set the position and scale of the camera on every start
         // Calculate the overall size of the board, and divide to find the center point
         let trans = Transform::from_xyz(center.x, center.y, 10.0);
         let mut camera_bundle = OrthographicCameraBundle::new_2d();
         camera_bundle.orthographic_projection.scale = settings.camera_scale;
-        camera_bundle.transform = trans.clone();
+        camera_bundle.transform = trans;
         // camera_bundle.global_transform = GlobalTransform::from(trans.clone());
         cmd.entity(camera_entity).insert_bundle(camera_bundle);
 
@@ -357,7 +354,7 @@ fn process_events_system(
                 let active_transform = active
                     .get_single_mut()
                     .map(|(_, t, _)| *t)
-                    .unwrap_or(Transform::from_xyz(0f32, 0f32, 7f32));
+                    .unwrap_or_else(|_| Transform::from_xyz(0f32, 0f32, 7f32));
 
                 // determine the next position
                 let transform = match *position_mode {
@@ -380,8 +377,8 @@ fn process_events_system(
                     // Create the new active entity
                     let entity = cmd
                         .spawn_bundle((
-                            transform.clone(),
-                            GlobalTransform::from(transform.clone()),
+                            transform,
+                            GlobalTransform::from(transform),
                             pattern.clone(),
                             timer,
                             ActiveEntity,

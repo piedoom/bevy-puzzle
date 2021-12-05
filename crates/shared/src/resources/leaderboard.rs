@@ -57,7 +57,7 @@ mod tests {
         let mut leaderboard = populated_leaderboard();
         let entry = ("Name4".to_string(), 50);
         let added = leaderboard.add(&entry.0, entry.1);
-        assert_eq!(added, false);
+        assert!(added);
         assert!(!leaderboard.leaders.contains(&entry));
     }
 

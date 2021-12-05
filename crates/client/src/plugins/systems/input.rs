@@ -117,7 +117,7 @@ fn add_to_hold_system(
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
         let pattern = hold.swap(active_pattern.get_single().unwrap().clone());
-        let pattern = pattern.unwrap_or(patterns.get(next_up.clone()).unwrap().clone());
+        let pattern = pattern.unwrap_or_else(|| patterns.get(next_up.clone()).unwrap().clone());
         if let Some(theme) = theme {
             sfx.send(PlaySfxEvent::new(theme.sfx.swap.clone()));
         }
@@ -288,11 +288,11 @@ fn determine_input_method_system(
 /// Automatically pause the game when focus is lost. Opt for adding this to
 /// [`SystemSet`]s instead of enabling during all game states
 fn pause_on_lose_focus_system(mut state: ResMut<State<GameState>>, windows: Res<Windows>) {
-    windows.get_primary().map(|w| {
+    if let Some(w) = windows.get_primary() {
         if !w.is_focused() {
             state.push(GameState::Pause).ok();
         }
-    });
+    }
 }
 
 pub fn active_piece_position_system(

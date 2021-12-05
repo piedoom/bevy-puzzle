@@ -12,7 +12,7 @@ pub struct PatternWidget<'a> {
 impl<'a> PatternWidget<'a> {
     pub fn new(pattern: Option<&'a Pattern>) -> Self {
         Self {
-            pattern: pattern,
+            pattern,
             size: None,
             color: pattern
                 .map(|x: &Pattern| {
@@ -31,7 +31,7 @@ impl<'a> PatternWidget<'a> {
 
 impl<'a> Widget for PatternWidget<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let size = self.size.unwrap_or(ui.available_width());
+        let size = self.size.unwrap_or_else(|| ui.available_width());
         // allocate a square
         let (rect, _) = ui.allocate_exact_size(EVec2::new(size, size), Sense::hover());
         // TODO: determine the number of "blocks" needed and the correct size to use based on the piece size
@@ -44,7 +44,7 @@ impl<'a> Widget for PatternWidget<'a> {
             // create a grid hehe
             for x in 0..grid_divisions as usize {
                 for y in 0..grid_divisions as usize {
-                    let mut local_rect = rect.clone();
+                    let mut local_rect = rect;
                     local_rect = local_rect
                         .translate(EVec2::new(x as f32 * unit_size, y as f32 * unit_size));
                     let square_rect = Rect::from_two_pos(

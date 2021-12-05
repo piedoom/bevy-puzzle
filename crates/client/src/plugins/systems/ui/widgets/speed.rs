@@ -16,7 +16,7 @@ impl<'a> Widget for SpeedWidget<'a> {
             let rect = ui
                 .allocate_exact_size(Vec2::new(24f32, 256f32), Sense::hover())
                 .0;
-            let mut speed_rect = rect.clone();
+            let mut speed_rect = rect;
             // adjust height based on top speed
             if let Some(percent) = self.step.percent(self.mode) {
                 speed_rect.set_height(rect.height() * percent);
@@ -39,7 +39,7 @@ impl<'a> Widget for SpeedWidget<'a> {
 
             // redundant show of placement timer
             if let Some(timer) = self.timer {
-                let mut timer_rect = rect.clone();
+                let mut timer_rect = rect;
                 timer_rect.set_height(rect.height() * timer.percent());
                 ui.painter().add(Shape::Rect {
                     rect: timer_rect,

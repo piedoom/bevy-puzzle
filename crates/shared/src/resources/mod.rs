@@ -54,7 +54,7 @@ impl Step {
                 ..
             } => {
                 // map step to range of values
-                let percent = self.percent(&mode).unwrap();
+                let percent = self.percent(mode).unwrap();
                 PlacementTimer::from_seconds(
                     percent.lerp(start_rate.as_secs_f32(), end_rate.as_secs_f32()),
                     false,

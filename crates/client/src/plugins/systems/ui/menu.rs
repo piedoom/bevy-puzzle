@@ -77,7 +77,7 @@ pub(crate) fn ui_menu_system(
 
                 // themes
                 // set the default theme if none
-                if let None = &menu_state.theme {
+                if menu_state.theme.is_none() {
                     menu_state.theme = (*themes).iter().find(|x| x.name == "default").cloned();
                 }
                 egui::ComboBox::from_label("Theme selection")
@@ -94,7 +94,7 @@ pub(crate) fn ui_menu_system(
                                 .selectable_value(
                                     &mut menu_state.theme,
                                     Some(theme.clone()),
-                                    format!("{}", theme.name),
+                                    theme.name.to_string(),
                                 )
                                 .clicked()
                             {
@@ -135,11 +135,10 @@ pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: Res
                     // todo: keep board
                     state.replace(GameState::Edit).ok();
                 }
-            } else {
-                if ui.button("Exit").clicked() {
-                    state.replace(GameState::Menu).ok();
-                }
+            } else if ui.button("Exit").clicked() {
+                state.replace(GameState::Menu).ok();
             }
+
             if ui.button("Resume").clicked() {
                 state.pop().ok();
             }

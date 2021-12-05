@@ -35,7 +35,7 @@ fn setup_system(
 ) {
     let settings = settings_assets.get(settings_handle.clone()).unwrap();
     // Create camera if none exists. Reset the transform since the map may have changed
-    let camera_entity = cameras.get_single().map(|e| e).unwrap_or(cmd.spawn().id());
+    let camera_entity = cameras.get_single().unwrap_or_else(|_| cmd.spawn().id());
     let mut camera_bundle = OrthographicCameraBundle::new_2d();
     camera_bundle.orthographic_projection.scale = settings.camera_scale;
     // camera_bundle.global_transform = GlobalTransform::from(trans.clone());
@@ -103,10 +103,9 @@ fn process_events_system(
                     .get_single()
                     .map(|(e, t)| {
                         // ensure there is not already a tile here in the gameboard
-                        if board
+                        if !board
                             .iter()
-                            .find(|(_, t2)| t2.translation.round() == t.translation.round())
-                            .is_none()
+                            .any(|(_, t2)| t2.translation.round() == t.translation.round())
                         {
                             cmd.entity(e).remove::<PreviewTile>().insert(GameBoard);
                         }

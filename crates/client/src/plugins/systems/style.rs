@@ -155,8 +155,8 @@ pub(crate) fn add_sprite_to_tiles_system(
     query.for_each(|(entity, transform)| {
         cmd.entity(entity).insert_bundle(SpriteBundle {
             sprite: Sprite::new(Vec2::new(1f32, 1f32)),
-            transform: transform.clone(),
-            global_transform: transform.clone().into(),
+            transform: *transform,
+            global_transform: (*transform).into(),
             ..Default::default()
         });
     });

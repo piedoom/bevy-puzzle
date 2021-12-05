@@ -1,4 +1,6 @@
 #![feature(derive_default_enum)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 use bevy::prelude::*;
 
@@ -43,6 +45,7 @@ pub fn run() {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PreloadingAssets(pub Vec<HandleUntyped>);
 
+#[allow(clippy::derive_hash_xor_eq)]
 #[derive(Debug, Clone, Eq, Hash, Default)]
 pub enum GameState {
     #[default]

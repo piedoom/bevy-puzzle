@@ -56,7 +56,7 @@ impl Iterator for Bag {
 
     fn next(&mut self) -> Option<Self::Item> {
         // add more pieces if we have no more
-        if self.queue.len() == 0 {
+        if self.queue.is_empty() {
             self.patterns.shuffle(&mut thread_rng());
             for pattern in &self.patterns {
                 self.queue.push_back(pattern.clone());

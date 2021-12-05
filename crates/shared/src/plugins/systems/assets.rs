@@ -101,7 +101,7 @@ fn init_load_system(
         let mut load_sprite = |path: &String, loading: &mut PreloadingAssets| {
             let handle = assets.load(format!("sprites/{}.png", path).as_str());
             loading.0.push(handle.clone_untyped());
-            materials.add(handle.clone().into())
+            materials.add(handle.into())
         };
 
         Theme {

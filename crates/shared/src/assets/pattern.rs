@@ -39,6 +39,7 @@ impl From<&str> for PatternColor {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<[u8; 4]> for PatternColor {
     fn into(self) -> [u8; 4] {
         match self {
