@@ -13,11 +13,9 @@ impl Plugin for AssetPlugin {
             .init_resource::<Campaigns>()
             .add_asset::<ThemeDescription>()
             .add_asset::<Pattern>()
-            .add_asset::<GameMode>()
             .add_asset::<Map>()
             .add_asset::<CampaignDescription>()
             .add_asset::<Save>()
-            .add_plugin(RonAssetPlugin::<GameMode>::new(&["mode"]))
             .add_plugin(RonAssetPlugin::<Map>::new(&["map"]))
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
             .add_plugin(RonAssetPlugin::<ThemeDescription>::new(&["theme"]))
@@ -148,10 +146,6 @@ fn init_load_system(
             .clone(),
     );
 
-    // load game modes
-    let mode_handles = &mut assets.load_folder("modes").expect("Could not load modes");
-    loading.0.append(mode_handles);
-
     // load maps
     let map_handles = &mut assets.load_folder("maps").expect("Could not load maps");
     loading.0.append(map_handles);
@@ -191,7 +185,6 @@ fn assets_loaded_transition_system(
 fn assemble_after_loaded_system(
     mut campaigns: ResMut<Campaigns>,
     maps: Res<Assets<Map>>,
-    modes: Res<Assets<GameMode>>,
     campaign_descriptions: Res<Assets<CampaignDescription>>,
 ) {
     let campaign_from_description = |desc: &CampaignDescription| -> Campaign {
@@ -208,13 +201,7 @@ fn assemble_after_loaded_system(
                             false => None,
                         })
                         .unwrap(),
-                    mode: modes
-                        .iter()
-                        .find_map(|(handle, mode)| match mode.name == level.mode {
-                            true => Some(modes.get_handle(handle)),
-                            false => None,
-                        })
-                        .unwrap(),
+                    options: level.options.clone().unwrap_or_default(),
                     objective: level.objective.clone(),
                 })
                 .collect(),

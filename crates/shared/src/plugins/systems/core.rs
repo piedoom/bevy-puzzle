@@ -22,12 +22,12 @@ impl Plugin for CorePuzzlePlugin {
             .add_event::<GameEvent>()
             .add_system(process_events_system)
             .add_system_set(
-                SystemSet::on_enter(GameState::main())
+                SystemSet::on_enter(GameState::game())
                     .with_system(setup_system)
                     .label("setup"),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::main())
+                SystemSet::on_update(GameState::game())
                     .with_system(scorer_system)
                     .with_system(placement_timer_tick_system)
                     .with_system(level_win_system)
@@ -35,7 +35,7 @@ impl Plugin for CorePuzzlePlugin {
                     .after(Label::Listen),
             )
             .add_system_set(
-                SystemSet::on_exit(GameState::main())
+                SystemSet::on_exit(GameState::game())
                     .with_system(destroy_map_system)
                     .with_system(reset_game_system),
             );
@@ -50,16 +50,13 @@ fn scorer_system(
     full_tiles: Query<(Entity, &Transform), (With<tile_states::Full>, With<GameBoard>)>,
     board: Query<(Entity, &Transform, Option<&tile_states::Full>), With<GameBoard>>,
     transforms: Query<&Transform>,
-    modes: Res<Assets<GameMode>>,
 ) {
-    if let GameState::Main(game_type) = state.current() {
-        let GameDetails { mode, .. } = game_type.get_details();
+    if let GameState::Game(game_type) = state.current() {
+        let GameDetails { options, .. } = game_type.get_details();
         // Important little vec that keeps track of all the scoring tiles that will be added at the end of the system loop
         let mut scoring_tiles = vec![];
-        let mode = modes.get(mode).unwrap();
-
         // do the scoring
-        match &mode.scorer {
+        match &options.scorer {
             Scorer::Square(size) => {
                 // Loop through every full tile to see if it is n tiles wide
                 full_tiles.for_each(|(_, t)| {
@@ -209,7 +206,7 @@ fn level_win_system(
     score: Res<Score>,
 ) {
     if let Some(started) = started {
-        if let GameState::Main(game_type) = state.current() {
+        if let GameState::Game(game_type) = state.current() {
             let GameDetails { objective, .. } = game_type.get_details();
 
             let won = match objective {
@@ -246,7 +243,7 @@ fn level_win_system(
                     // no campaign, go back to the menus
                     None => NextTransition::Menu,
                 };
-                state.replace(GameState::End(transition)).ok();
+                state.replace(GameState::PostGame(transition)).ok();
             }
         }
     }
@@ -261,7 +258,6 @@ fn setup_system(
     mut hold: ResMut<Hold>,
     mut next: ResMut<NextUp>,
     mut bounds: ResMut<Bounds<Vec2>>,
-    modes: Res<Assets<GameMode>>,
     maps: Res<Assets<Map>>,
     state: Res<State<GameState>>,
     settings: Res<Assets<SettingsAsset>>,
@@ -271,13 +267,10 @@ fn setup_system(
 ) {
     let settings = settings.get(current_setting.clone()).unwrap();
     cmd.insert_resource(GameStarted::now());
-    if let GameState::Main(game_type) = state.current() {
-        let GameDetails { map, mode, .. } = game_type.get_details();
-        let mode = modes.get(mode).unwrap();
+    if let GameState::Game(game_type) = state.current() {
+        let GameDetails { map, options, .. } = game_type.get_details();
         let map = maps.get(map).unwrap();
-        if mode.patterns.is_empty() {
-            panic!("Current GameMode provides no patterns")
-        }
+
         // calculate screen position from already calculated world bounds
         let mut rect = map.calculate_rect();
         // adjust to get corners of tiles instead of center
@@ -315,7 +308,13 @@ fn setup_system(
         *bag = Bag::new(
             patterns
                 .iter()
-                .filter(|(_, pattern)| mode.patterns.contains(&pattern.name))
+                .filter(|(_, pattern)| {
+                    match &options.patterns {
+                        Some(patterns) => patterns.contains(&pattern.name),
+                        // If patterns is none, allow all tile patterns
+                        None => true,
+                    }
+                })
                 .map(|(x, _)| patterns.get_handle(x))
                 .collect(),
         );
@@ -359,7 +358,6 @@ fn process_events_system(
     mut state: ResMut<State<GameState>>,
     mut step: ResMut<Step>,
     mut active: Query<(Entity, &mut Transform, &Pattern), With<ActiveEntity>>,
-    modes: Res<Assets<GameMode>>,
     position_mode: Res<ActivePositionMode>,
     score: ResMut<Score>,
     settings_handle: Res<Handle<SettingsAsset>>,
@@ -392,10 +390,9 @@ fn process_events_system(
                 // remove all old actives to prepare to add a new one
                 active.for_each_mut(|(e, ..)| cmd.entity(e).despawn_recursive());
 
-                if let GameState::Main(game_type) = state.current() {
-                    let GameDetails { mode, .. } = game_type.get_details();
-                    let mode = modes.get(mode.clone()).unwrap();
-                    let timer = step.create_timer(mode);
+                if let GameState::Game(game_type) = state.current() {
+                    let GameDetails { options, .. } = game_type.get_details();
+                    let timer = step.create_timer(&options);
 
                     // Create the new active entity
                     let entity = cmd

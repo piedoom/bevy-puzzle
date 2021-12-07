@@ -22,8 +22,8 @@ impl Plugin for StylePlugin {
         };
 
         app.insert_resource(ClearColor(Color::hex("1B1920").unwrap()))
-            .add_system_set(process(GameState::main()))
-            .add_system_set(react(GameState::main()))
+            .add_system_set(process(GameState::game()))
+            .add_system_set(react(GameState::game()))
             .add_system_set(process(GameState::edit()))
             .add_system_set(react(GameState::edit()));
     }

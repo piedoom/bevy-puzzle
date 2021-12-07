@@ -28,7 +28,7 @@ impl Plugin for UiPlugin {
                     .label("main"),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::main())
+                SystemSet::on_update(GameState::game())
                     .with_system(ui_main_system)
                     .label("main"),
             )
@@ -44,7 +44,7 @@ impl Plugin for UiPlugin {
                 SystemSet::on_update(GameState::LoadOptions).with_system(ui_load_options_system),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::end()).with_system(ui_end_screen_system),
+                SystemSet::on_update(GameState::post_game()).with_system(ui_end_screen_system),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::pre_game()).with_system(ui_pre_game_menu_system),

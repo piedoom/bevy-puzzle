@@ -14,7 +14,7 @@ impl Plugin for InputPlugin {
             .add_system(determine_input_method_system)
             .add_system(get_cursor_position_system)
             .add_system_set(
-                SystemSet::on_update(GameState::main())
+                SystemSet::on_update(GameState::game())
                     .with_system(pause_on_lose_focus_system)
                     .with_system(rotate_active_system)
                     .with_system(add_to_hold_system)
@@ -70,12 +70,10 @@ fn rotate_active_system(
     state: Res<State<GameState>>,
     theme: Option<Res<Theme>>,
     keyboard: Res<Input<KeyCode>>,
-    modes: Res<Assets<GameMode>>,
 ) {
-    if let GameState::Main(game_type) = state.current() {
-        let GameDetails { mode, .. } = game_type.get_details();
-        let mode = modes.get(mode).unwrap();
-        if mode.can_rotate {
+    if let GameState::Game(game_type) = state.current() {
+        let GameDetails { options, .. } = game_type.get_details();
+        if options.can_rotate {
             let right_pressed = keyboard.just_pressed(KeyCode::D);
             let left_pressed = keyboard.just_pressed(KeyCode::A);
             if right_pressed || left_pressed {
@@ -237,7 +235,7 @@ fn update_hovered_system(
 fn pause_system(mut state: ResMut<State<GameState>>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.just_pressed(KeyCode::Escape) {
         match state.current() {
-            GameState::Main { .. } => state.push(GameState::Pause).ok(),
+            GameState::Game { .. } => state.push(GameState::Pause).ok(),
             GameState::Edit => state.push(GameState::Pause).ok(),
             GameState::Pause => state.pop().ok(),
             _ => None, // do nothing otherwise

@@ -10,7 +10,6 @@ pub type Paused = bool;
 
 #[derive(Default)]
 pub struct MenuState {
-    pub mode: Option<Handle<GameMode>>,
     pub map: Option<Handle<Map>>,
     pub theme: Option<Theme>,
     pub campaign: Option<Campaign>,
@@ -164,7 +163,6 @@ pub(crate) fn ui_load_options_system(
 pub(crate) fn ui_pre_game_menu_system(
     mut state: ResMut<State<GameState>>,
     maps: Res<Assets<Map>>,
-    modes: Res<Assets<GameMode>>,
     ctx: ResMut<EguiContext>,
 ) {
     match state.current().clone() {
@@ -176,8 +174,16 @@ pub(crate) fn ui_pre_game_menu_system(
                     ui.vertical(|ui| {
                         // Show basic info
                         let details = game_type.get_details();
+                        let options = details.options;
                         ui.label(format!("Map: {}", maps.get(details.map).unwrap().name));
-                        ui.label(format!("Mode: {}", modes.get(details.mode).unwrap().name));
+                        ui.label(format!(
+                        "Options\nHolding: {}\nPeeking: {}\nRotating: {}\nAll patterns: {}\nScorer: {:?}",
+                        options.can_hold,
+                        options.can_peek,
+                        options.can_rotate,
+                        options.patterns.is_some(),
+                        options.scorer,
+                        ));
 
                         // Show objective details
                         ui.label(match details.objective {
@@ -209,7 +215,7 @@ pub(crate) fn ui_pre_game_menu_system(
                     });
                     if ui.button("Start").clicked() {
                         if let GameState::PreGame(game_type) = state.current().clone() {
-                            state.replace(GameState::Main(game_type)).ok();
+                            state.replace(GameState::Game(game_type)).ok();
                         } else {
                             unreachable!("System enabled for an incorrect state");
                         }
@@ -243,7 +249,7 @@ pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: Res
 
 pub(crate) fn ui_end_screen_system(mut state: ResMut<State<GameState>>, ctx: ResMut<EguiContext>) {
     let mut next_state = || match state.current() {
-        GameState::End(transition) => {
+        GameState::PostGame(transition) => {
             // Handle win screen
             let next = match transition {
                 NextTransition::Menu => GameState::Menu,

@@ -20,12 +20,11 @@ pub(crate) fn ui_main_system(
     patterns: Res<Assets<Pattern>>,
     state: Res<State<GameState>>,
     //  bounds: Res<Bounds<bevy::math::Vec2>>,
-    modes: Res<Assets<GameMode>>,
     ui_settings: Res<EguiSettings>,
 ) {
     // get current mode
-    if let GameState::Main(game_type) = state.current() {
-        let GameDetails { mode, .. } = game_type.get_details();
+    if let GameState::Game(game_type) = state.current() {
+        let GameDetails { options, .. } = game_type.get_details();
         if let Ok((camera, _projection, camera_transform)) = camera.get_single() {
             // cursor
             // get active position
@@ -98,7 +97,6 @@ pub(crate) fn ui_main_system(
             //     egui::Rect { min, max }
             // };
 
-            let mode = modes.get(mode).unwrap();
             egui::containers::Area::new("score")
                 .anchor(Align2::LEFT_TOP, egui::Vec2::splat(32f32))
                 //.fixed_pos(extents.left_top() + egui::Vec2::new(0f32, -32f32))
@@ -108,7 +106,7 @@ pub(crate) fn ui_main_system(
                         // speed widget
                         let timer = active.get_single().map(|(_, t, ..)| t).ok();
                         ui.add(SpeedWidget {
-                            mode,
+                            options: &options,
                             step: &step,
                             timer,
                         });
@@ -123,14 +121,14 @@ pub(crate) fn ui_main_system(
                 .show(ctx.ctx(), |ui| {
                     ui.vertical(|ui| {
                         // Create a widget for our held piece, if we are allowed
-                        if mode.can_hold {
+                        if options.can_hold {
                             ui.add(PatternWidget::new(hold.get()).size(128f32));
                             ui.heading("Hold");
                             ui.add_space(50f32);
                         }
 
                         // Create a widget for our next-up pattern, if we are allowed to view it
-                        if mode.can_peek {
+                        if options.can_peek {
                             if let Some(next_pattern) = patterns.get(next_up.clone()) {
                                 ui.add(PatternWidget::new(Some(next_pattern)).size(128f32));
                                 ui.heading("Next");

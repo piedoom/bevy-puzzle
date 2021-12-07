@@ -3,12 +3,10 @@
     levels: [
         (
             map: "default",
-            mode: "default",
             objective: Survive(Duration(secs: 60, nanos: 0)),
         ),
         (
             map: "skew",
-            mode: "default",
             objective: Survive(Duration(secs: 60, nanos: 0)),
         )
     ]

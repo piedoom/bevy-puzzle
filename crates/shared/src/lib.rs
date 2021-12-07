@@ -24,24 +24,6 @@ pub mod prelude {
 
 use prelude::*;
 
-/*
-#[wasm_bindgen]
-pub fn run() {
-    let mut app = App::build();
-    app.add_plugins(DefaultPlugins);
-    // when building for Web, use WebGL2 rendering
-    #[cfg(target_arch = "wasm32")]
-    app.add_plugin(bevy_webgl2::WebGL2Plugin);
-    // TODO: add all your other stuff to `app` as usual
-    app.insert_resource(ClearColor(Color::rgb(0.0, 0.02, 0.05)))
-        .add_plugins(DefaultPlugins)
-        .add_plugins(FullPlugins)
-        .add_plugin(EguiPlugin)
-        .add_plugin(ui::UiPlugin);
-    app.run();
-}
-*/
-
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PreloadingAssets(pub Vec<HandleUntyped>);
 
@@ -56,8 +38,8 @@ pub enum GameState {
     StartOptions,
     EditOptions,
     PreGame(GameType),
-    Main(GameType),
-    End(NextTransition),
+    Game(GameType),
+    PostGame(NextTransition),
     Pause,
     Edit,
 }
@@ -72,7 +54,7 @@ pub enum NextTransition {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct GameDetails {
     pub map: Handle<Map>,
-    pub mode: Handle<GameMode>,
+    pub options: GameOptions,
     pub objective: Objective,
 }
 
@@ -119,8 +101,8 @@ impl GameType {
         match self {
             GameType::Campaign(c) => GameDetails {
                 map: c.current_level().0.map.clone(),
-                mode: c.current_level().0.mode.clone(),
                 objective: c.current_level().0.objective.clone(),
+                options: c.current_level().0.options.clone(),
             },
             GameType::Other(o) => o.clone(),
         }
@@ -162,8 +144,8 @@ impl GameState {
     }
 
     #[inline(always)]
-    pub fn main() -> Self {
-        Self::Main(GameType::default())
+    pub fn game() -> Self {
+        Self::Game(GameType::default())
     }
 
     #[inline(always)]
@@ -177,7 +159,7 @@ impl GameState {
     }
 
     #[inline(always)]
-    pub fn end() -> Self {
-        Self::End(Default::default())
+    pub fn post_game() -> Self {
+        Self::PostGame(Default::default())
     }
 }

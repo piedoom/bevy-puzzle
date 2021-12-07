@@ -7,7 +7,7 @@ use bevy_egui::{
 };
 use shared::prelude::*;
 
-use super::{widgets::SelectAssetWidget, MenuState};
+use super::MenuState;
 
 #[derive(Default)]
 pub struct EditUiPlugin;
@@ -25,13 +25,12 @@ impl Plugin for EditUiPlugin {
 #[derive(Default)]
 struct UiState {
     map_name: String,
-    mode: Option<Handle<GameMode>>,
+    options: Option<GameOptions>,
 }
 
 fn edit_menu_system(
     mut events: EventWriter<EditEvent>,
     mut ui_state: ResMut<UiState>,
-    modes: Res<Assets<GameMode>>,
     ctx: ResMut<EguiContext>,
 ) {
     egui::Area::new("edit_menu")
@@ -45,34 +44,23 @@ fn edit_menu_system(
                 })
             }
 
-            ui.add(SelectAssetWidget::<GameMode> {
-                name: "Mode selection",
-                selection: &mut ui_state.mode,
-                assets: &modes,
-            });
+            todo!()
+            // TODO: Game settings selections
+            // ui.add(SelectAssetWidget::<GameOptions> {
+            //     name: "Mode selection",
+            //     selection: &mut ui_state.options,
+            //     assets: &modes,
+            // });
 
-            if ui.button("Test").clicked() {
-                events.send(EditEvent::RunCurrentMap {
-                    mode: ui_state.mode.as_ref().unwrap().clone(),
-                });
-            }
+            // if ui.button("Test").clicked() {
+            //     events.send(EditEvent::RunCurrentMap {
+            //         mode: ui_state.options.as_ref().unwrap().clone(),
+            //     });
+            // }
         });
 }
 
-fn set_default_ui_data_system(
-    mut menu_state: ResMut<MenuState>,
-    modes: Res<Assets<GameMode>>,
-    maps: Res<Assets<Map>>,
-) {
-    // The current mode is unset. Find the asset titled "default"
-    menu_state.mode = modes.iter().find_map(|(id, mode)| {
-        if mode.name == GameMode::default_name() {
-            Some(modes.get_handle(id))
-        } else {
-            None
-        }
-    });
-
+fn set_default_ui_data_system(mut menu_state: ResMut<MenuState>, maps: Res<Assets<Map>>) {
     menu_state.map = maps.iter().find_map(|(id, map)| {
         if map.name == Map::default_name() {
             Some(maps.get_handle(id))

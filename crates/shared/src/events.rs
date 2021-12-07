@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use bevy::{math::Vec2, prelude::Handle};
+use bevy::math::Vec2;
 
 use crate::prelude::*;
 
@@ -22,5 +22,5 @@ pub enum EditEvent {
     PlaceActive,
     Clear(Vec2),
     SaveCurrentMap { name: String, path: PathBuf },
-    RunCurrentMap { mode: Handle<GameMode> },
+    RunCurrentMap { options: GameOptions },
 }

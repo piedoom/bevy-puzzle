@@ -4,7 +4,7 @@ use bevy_egui::egui::*;
 use shared::prelude::*;
 
 pub struct SpeedWidget<'a> {
-    pub mode: &'a GameMode,
+    pub options: &'a GameOptions,
     pub step: &'a Step,
     pub timer: Option<&'a PlacementTimer>,
 }
@@ -18,7 +18,7 @@ impl<'a> Widget for SpeedWidget<'a> {
                 .0;
             let mut speed_rect = rect;
             // adjust height based on top speed
-            if let Some(percent) = self.step.percent(self.mode) {
+            if let Some(percent) = self.step.percent(self.options) {
                 speed_rect.set_height(rect.height() * percent);
             }
 

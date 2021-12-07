@@ -130,14 +130,14 @@ fn process_events_system(
                 let mut file = File::create(format!("assets/maps/{}.map", path.display())).unwrap();
                 writeln!(file, "{}", serialized).unwrap();
             }
-            EditEvent::RunCurrentMap { mode } => {
+            EditEvent::RunCurrentMap { options: _options } => {
                 let map = Map {
                     pattern: current_tiles_to_vec(&board),
                     ..Default::default()
                 };
                 state
-                    .replace(GameState::Main(GameType::Other(GameDetails {
-                        mode: mode.clone(),
+                    .replace(GameState::Game(GameType::Other(GameDetails {
+                        options: GameOptions::default(), // TODO: Allow player to set options
                         map: maps.add(map),
                         objective: Objective::FreePlay,
                     })))
