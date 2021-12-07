@@ -3,6 +3,9 @@
     levels: [
         (
             map: "default",
+            options: (
+                patterns: Some(["quad"]),
+            ),
             objective: Survive(Duration(secs: 60, nanos: 0)),
         ),
         (

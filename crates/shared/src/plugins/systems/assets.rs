@@ -201,7 +201,7 @@ fn assemble_after_loaded_system(
                             false => None,
                         })
                         .unwrap(),
-                    options: level.options.clone().unwrap_or_default(),
+                    options: level.options.clone(),
                     objective: level.objective.clone(),
                 })
                 .collect(),

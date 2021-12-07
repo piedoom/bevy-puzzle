@@ -181,7 +181,7 @@ pub(crate) fn ui_pre_game_menu_system(
                         options.can_hold,
                         options.can_peek,
                         options.can_rotate,
-                        options.patterns.is_some(),
+                        options.patterns.is_none(),
                         options.scorer,
                         ));
 

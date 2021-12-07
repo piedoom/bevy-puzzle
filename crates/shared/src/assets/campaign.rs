@@ -19,7 +19,7 @@ pub struct CampaignDescription {
 pub struct LevelDescription {
     pub map: String,
     #[serde(default)]
-    pub options: Option<GameOptions>,
+    pub options: GameOptions,
     pub objective: Objective,
 }
 

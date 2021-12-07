@@ -24,6 +24,7 @@ pub struct GameOptions {
     /// the correct patterns. This is not a Handle as that changes at runtime, and we need this data to persist.
     #[serde(default)]
     pub patterns: Option<Vec<String>>,
+    #[serde(default)]
     pub scorer: Scorer,
 }
 
