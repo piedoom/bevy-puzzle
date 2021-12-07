@@ -1,10 +1,9 @@
 mod pattern;
-mod speed;
 
 use bevy::{asset::Asset, prelude::*, reflect::TypeUuid};
 use bevy_egui::egui::{self, Widget};
+pub use pattern::*;
 use std::fmt::Display;
-pub use {pattern::*, speed::*};
 
 pub struct SelectAssetWidget<'a, T>
 where

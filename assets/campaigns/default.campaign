@@ -4,7 +4,7 @@
         (
             map: "default",
             options: (
-                patterns: Some(["quad"]),
+                patterns: Some(["quad", "bracket right", "bracket left", "snake left", "snake right", "pyramid"]),
             ),
             objective: Survive(Duration(secs: 60, nanos: 0)),
         ),

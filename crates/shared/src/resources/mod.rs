@@ -26,8 +26,8 @@ impl Step {
         self.0 = 0;
     }
 
-    pub fn percent(&self, mode: &GameOptions) -> Option<f32> {
-        match mode.timer_rate {
+    pub fn percent(&self, options: &GameOptions) -> Option<f32> {
+        match options.timer_rate {
             // A constant timer gives us a constant percentage finished (1f32)
             TimerRate::Constant(_) => Some(1f32),
             TimerRate::Progressive { steps, delay, .. } => {

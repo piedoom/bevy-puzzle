@@ -5,7 +5,7 @@ use bevy_egui::{EguiContext, EguiSettings};
 
 use shared::{prelude::*, GameDetails};
 
-use super::widgets::{PatternWidget, SpeedWidget};
+use super::widgets::PatternWidget;
 
 /// Draw the UI for our main game state
 pub(crate) fn ui_main_system(
@@ -40,21 +40,34 @@ pub(crate) fn ui_main_system(
                         let pos = egui::Vec2::new(pos.x - margin, window_height - pos.y - margin)
                             / ui_settings.scale_factor as f32;
                         let radius = 10f32;
+
+                        // Show the placement timer and overall speed next to the current cursor
+                        // TODO: make this work for arrow keys / console
                         egui::containers::Area::new("timer")
                             .interactable(false)
                             .current_pos(Pos2::new(pos.x, pos.y))
                             .show(ctx.ctx(), |ui| {
+                                const STROKE_WIDTH: f32 = 1.;
                                 let (_, paint) = ui.allocate_painter(
-                                    egui::Vec2::splat(radius * 2f32),
+                                    egui::Vec2::splat((radius + STROKE_WIDTH) * 2f32),
                                     Sense::click(),
                                 );
 
+                                // Background shape
                                 paint.add(Shape::circle_filled(
                                     Pos2::new(pos.x + radius, pos.y + radius),
                                     radius,
                                     Color32::from_rgb(46, 45, 91),
                                 ));
 
+                                // Current speed shape
+                                paint.add(Shape::circle_stroke(
+                                    Pos2::new(pos.x + radius, pos.y + radius),
+                                    radius * step.percent(&options).unwrap_or(1.),
+                                    Stroke::new(STROKE_WIDTH, Color32::RED),
+                                ));
+
+                                // Placement timer shape
                                 paint.add(Shape::circle_filled(
                                     Pos2::new(pos.x + radius, pos.y + radius),
                                     radius * timer.percent(),
@@ -99,18 +112,9 @@ pub(crate) fn ui_main_system(
 
             egui::containers::Area::new("score")
                 .anchor(Align2::LEFT_TOP, egui::Vec2::splat(32f32))
-                //.fixed_pos(extents.left_top() + egui::Vec2::new(0f32, -32f32))
                 .show(ctx.ctx(), |ui| {
                     ui.vertical(|ui| {
                         ui.heading(format!("Score: {}", *score));
-                        // speed widget
-                        let timer = active.get_single().map(|(_, t, ..)| t).ok();
-                        ui.add(SpeedWidget {
-                            options: &options,
-                            step: &step,
-                            timer,
-                        });
-                        ui.heading("Speed");
                     });
                 });
 
