@@ -3,8 +3,8 @@ use bevy_egui::{
     egui::{self, style::Spacing, Ui, Vec2 as EVec2},
     *,
 };
-use shared::GameType;
 use shared::{prelude::*, CampaignDetails};
+use shared::{GameType, NextTransition};
 /// Resource that tells us if the game is paused or not
 pub type Paused = bool;
 
@@ -80,9 +80,9 @@ pub(crate) fn ui_start_options_system(
                         // Set the save file as a current resource
                         cmd.insert_resource(save);
 
-                        // Start game
+                        // Start game (go to pre-game screen)
                         state
-                            .set(GameState::Main(GameType::Campaign(CampaignDetails {
+                            .set(GameState::PreGame(GameType::Campaign(CampaignDetails {
                                 campaign: campaign.clone(),
                                 ..Default::default()
                             })))
@@ -147,9 +147,9 @@ pub(crate) fn ui_load_options_system(
                     campaigns.iter().for_each(|c| {
                         if c.name == save.campaign {
                             state
-                                .push(GameState::Main(GameType::Campaign(CampaignDetails {
+                                .push(GameState::PreGame(GameType::Campaign(CampaignDetails {
                                     campaign: c.clone(),
-                                    current_level_index: save.level,
+                                    level_index: save.level,
                                     campaign_scores: vec![],
                                 })))
                                 .ok();
@@ -158,6 +158,66 @@ pub(crate) fn ui_load_options_system(
                 }
             }
         });
+}
+
+/// Shows the game information before beginning the level
+pub(crate) fn ui_pre_game_menu_system(
+    mut state: ResMut<State<GameState>>,
+    maps: Res<Assets<Map>>,
+    modes: Res<Assets<GameMode>>,
+    ctx: ResMut<EguiContext>,
+) {
+    match state.current().clone() {
+        GameState::PreGame(game_type) => {
+            egui::Area::new("pre_game")
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .show(ctx.ctx(), |ui| {
+                    // Main buttons
+                    ui.vertical(|ui| {
+                        // Show basic info
+                        let details = game_type.get_details();
+                        ui.label(format!("Map: {}", maps.get(details.map).unwrap().name));
+                        ui.label(format!("Mode: {}", modes.get(details.mode).unwrap().name));
+
+                        // Show objective details
+                        ui.label(match details.objective {
+                            Objective::FreePlay => {
+                                "Freeplay. Play for as long as you can survive.".to_string()
+                            }
+                            Objective::Survive(duration) => {
+                                format!("Survival. Stay alive for {} seconds.", duration.as_secs())
+                            }
+                            Objective::TimeLimit {
+                                required_score,
+                                duration,
+                            } => format!(
+                                "Time Trial. Reach {} in {} seconds.",
+                                required_score,
+                                duration.as_secs()
+                            ),
+                        });
+
+                        // If part of a campaign, show the info here
+                        if let Some(c) = game_type.get_campaign() {
+                            ui.label(format!("Campaign: {}", c.campaign.name));
+                            ui.label(format!(
+                                "Level {}/{}",
+                                c.level_index + 1,
+                                c.campaign.levels.len()
+                            ));
+                        }
+                    });
+                    if ui.button("Start").clicked() {
+                        if let GameState::PreGame(game_type) = state.current().clone() {
+                            state.replace(GameState::Main(game_type)).ok();
+                        } else {
+                            unreachable!("System enabled for an incorrect state");
+                        }
+                    }
+                });
+        }
+        _ => unreachable!("Added system to wrong set state"),
+    }
 }
 
 pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: ResMut<EguiContext>) {
@@ -177,6 +237,36 @@ pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: Res
 
             if ui.button("Resume").clicked() {
                 state.pop().ok();
+            }
+        });
+}
+
+pub(crate) fn ui_end_screen_system(mut state: ResMut<State<GameState>>, ctx: ResMut<EguiContext>) {
+    let mut next_state = || match state.current() {
+        GameState::End(transition) => {
+            // Handle win screen
+            let next = match transition {
+                NextTransition::Menu => GameState::Menu,
+                NextTransition::NewLevel(next) => {
+                    let next_campaign = next
+                        .get_campaign()
+                        .expect("Should only use `NewLevel` when using campaigns");
+                    save_game(&next_campaign.campaign, next_campaign.level_index);
+                    GameState::PreGame(GameType::Campaign(next_campaign))
+                }
+            };
+
+            state.replace(next).ok();
+        }
+        _ => unreachable!("System ran outside of `GameState::End`"),
+    };
+
+    egui::Window::new("End game")
+        .collapsible(false)
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .show(ctx.ctx(), |ui| {
+            if ui.button("Continue").clicked() {
+                next_state();
             }
         });
 }

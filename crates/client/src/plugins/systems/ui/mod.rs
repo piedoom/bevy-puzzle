@@ -43,6 +43,12 @@ impl Plugin for UiPlugin {
             .add_system_set(
                 SystemSet::on_update(GameState::LoadOptions).with_system(ui_load_options_system),
             )
+            .add_system_set(
+                SystemSet::on_update(GameState::end()).with_system(ui_end_screen_system),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::pre_game()).with_system(ui_pre_game_menu_system),
+            )
             .add_plugin(EditUiPlugin);
     }
 }

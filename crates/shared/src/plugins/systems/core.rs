@@ -38,9 +38,6 @@ impl Plugin for CorePuzzlePlugin {
                 SystemSet::on_exit(GameState::main())
                     .with_system(destroy_map_system)
                     .with_system(reset_game_system),
-            )
-            .add_system_set(
-                SystemSet::on_update(GameState::win()).with_system(handle_transition_system),
             );
     }
 }
@@ -238,7 +235,7 @@ fn level_win_system(
                             Some((_, next_level_index)) => {
                                 NextTransition::NewLevel(GameType::Campaign(CampaignDetails {
                                     campaign: c.campaign,
-                                    current_level_index: next_level_index,
+                                    level_index: next_level_index,
                                     campaign_scores: vec![], // TODO!
                                 }))
                             }
@@ -249,28 +246,9 @@ fn level_win_system(
                     // no campaign, go back to the menus
                     None => NextTransition::Menu,
                 };
-                state.replace(GameState::Win(transition)).ok();
+                state.replace(GameState::End(transition)).ok();
             }
         }
-    }
-}
-
-fn handle_transition_system(mut state: ResMut<State<GameState>>) {
-    match state.current() {
-        GameState::Win(transition) => {
-            // Handle win screen
-            let next_state = match transition {
-                NextTransition::Menu => GameState::Menu,
-                NextTransition::NewLevel(next) => {
-                    let next_campaign = next
-                        .get_campaign()
-                        .expect("Should only use `NewLevel` when using campaigns");
-                    GameState::Main(GameType::Campaign(next_campaign))
-                }
-            };
-            state.replace(next_state).ok();
-        }
-        _ => (),
     }
 }
 

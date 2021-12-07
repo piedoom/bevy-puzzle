@@ -55,8 +55,9 @@ pub enum GameState {
     LoadOptions,
     StartOptions,
     EditOptions,
+    PreGame(GameType),
     Main(GameType),
-    Win(NextTransition),
+    End(NextTransition),
     Pause,
     Edit,
 }
@@ -78,19 +79,19 @@ pub struct GameDetails {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct CampaignDetails {
     pub campaign: Campaign,
-    pub current_level_index: usize,
+    pub level_index: usize,
     pub campaign_scores: Vec<usize>,
 }
 
 impl CampaignDetails {
     pub fn current_level(&self) -> (&Level, usize) {
         (
-            self.campaign.levels.get(self.current_level_index).unwrap(),
-            self.current_level_index,
+            self.campaign.levels.get(self.level_index).unwrap(),
+            self.level_index,
         )
     }
     pub fn next_level(&self) -> Option<(&Level, usize)> {
-        let next_level_index = self.current_level_index + 1;
+        let next_level_index = self.level_index + 1;
         self.campaign
             .levels
             .get(next_level_index)
@@ -156,6 +157,11 @@ impl GameState {
     }
 
     #[inline(always)]
+    pub fn pre_game() -> Self {
+        Self::PreGame(GameType::default())
+    }
+
+    #[inline(always)]
     pub fn main() -> Self {
         Self::Main(GameType::default())
     }
@@ -171,7 +177,7 @@ impl GameState {
     }
 
     #[inline(always)]
-    pub fn win() -> Self {
-        Self::Win(Default::default())
+    pub fn end() -> Self {
+        Self::End(Default::default())
     }
 }
