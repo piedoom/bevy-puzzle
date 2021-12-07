@@ -1,10 +1,10 @@
 //! Systems needed to represent the bare-minimum of the game. Systems here
 //! set up the game board, score pieces, and control the [`PlacementTimer`] among other things.
 
-use std::{fs::File, io::Write, time::Duration};
+use std::time::Duration;
 
 use crate::{prelude::*, CampaignDetails, GameDetails, GameType, NextTransition};
-use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera, utils::Instant};
+use bevy::{app::Events, prelude::*, render::camera::Camera, utils::Instant};
 
 use super::Label;
 
@@ -260,8 +260,8 @@ fn setup_system(
     mut bounds: ResMut<Bounds<Vec2>>,
     maps: Res<Assets<Map>>,
     state: Res<State<GameState>>,
-    settings: Res<Assets<SettingsAsset>>,
-    current_setting: Res<Handle<SettingsAsset>>,
+    settings: Res<Assets<UserPreferencesAsset>>,
+    current_setting: Res<Handle<UserPreferencesAsset>>,
     patterns: Res<Assets<Pattern>>,
     cameras: Query<Entity, With<Camera>>,
 ) {
@@ -354,13 +354,10 @@ fn process_events_system(
     mut events: ResMut<Events<GameEvent>>,
     mut bag: ResMut<Bag>,
     mut next: ResMut<NextUp>,
-    mut settings_assets: ResMut<Assets<SettingsAsset>>,
-    mut state: ResMut<State<GameState>>,
     mut step: ResMut<Step>,
     mut active: Query<(Entity, &mut Transform, &Pattern), With<ActiveEntity>>,
+    state: ResMut<State<GameState>>,
     position_mode: Res<ActivePositionMode>,
-    score: ResMut<Score>,
-    settings_handle: Res<Handle<SettingsAsset>>,
     hover: Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
     pattern_assets: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
@@ -460,26 +457,8 @@ fn process_events_system(
                 }
             }
             GameEvent::Loss => {
-                // Set high score
-                let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
-                // If it changed...
-                let name = {
-                    if settings.active_name.is_empty() {
-                        "rustacean"
-                    } else {
-                        &settings.active_name
-                    }
-                };
-                if settings.leaderboard.add(name, *score) {
-                    // Save asset for leaderboard
-                    if let Ok(text) = ron::to_string(settings) {
-                        let path = AssetPath::from("assets/settings.rfg");
-                        let mut file = File::create(path.path()).unwrap();
-                        file.write_all(text.as_bytes()).ok();
-                    }
-                }
-
-                state.replace(GameState::menu()).ok();
+                // state.replace(GameState::menu()).ok();
+                todo!("change to post-state instead of directly taking back to menu, may want to restart if campaign.");
             }
         }
     }

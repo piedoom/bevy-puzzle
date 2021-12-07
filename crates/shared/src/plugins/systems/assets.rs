@@ -1,4 +1,4 @@
-use crate::{assets::SettingsAsset, prelude::*, GameState, PreloadingAssets};
+use crate::{assets::UserPreferencesAsset, prelude::*, GameState, PreloadingAssets};
 use bevy::{asset::LoadState, prelude::*};
 use bevy_asset_ron::RonAssetPlugin;
 use bevy_kira_audio::AudioSource;
@@ -8,7 +8,7 @@ pub struct AssetPlugin;
 impl Plugin for AssetPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PreloadingAssets>()
-            .init_resource::<Handle<SettingsAsset>>()
+            .init_resource::<Handle<UserPreferencesAsset>>()
             .init_resource::<Themes>()
             .init_resource::<Campaigns>()
             .add_asset::<ThemeDescription>()
@@ -17,7 +17,7 @@ impl Plugin for AssetPlugin {
             .add_asset::<CampaignDescription>()
             .add_asset::<Save>()
             .add_plugin(RonAssetPlugin::<Map>::new(&["map"]))
-            .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
+            .add_plugin(RonAssetPlugin::<UserPreferencesAsset>::new(&["rfg"]))
             .add_plugin(RonAssetPlugin::<ThemeDescription>::new(&["theme"]))
             .add_plugin(RonAssetPlugin::<CampaignDescription>::new(&["campaign"]))
             .add_plugin(RonAssetPlugin::<Save>::new(&["save"]))
@@ -75,7 +75,7 @@ fn pre_load_assets_loaded_transition_system(
 fn init_load_system(
     mut cmd: Commands,
     mut state: ResMut<State<GameState>>,
-    mut settings_handle: ResMut<Handle<SettingsAsset>>,
+    mut settings_handle: ResMut<Handle<UserPreferencesAsset>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut loading: ResMut<PreloadingAssets>,
     mut themes: ResMut<Themes>,

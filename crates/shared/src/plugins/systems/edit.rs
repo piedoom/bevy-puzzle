@@ -30,8 +30,8 @@ impl Plugin for EditPlugin {
 fn setup_system(
     mut cmd: Commands,
     cameras: Query<Entity, With<Camera>>,
-    settings_assets: Res<Assets<SettingsAsset>>,
-    settings_handle: Res<Handle<SettingsAsset>>,
+    settings_assets: Res<Assets<UserPreferencesAsset>>,
+    settings_handle: Res<Handle<UserPreferencesAsset>>,
 ) {
     let settings = settings_assets.get(settings_handle.clone()).unwrap();
     // Create camera if none exists. Reset the transform since the map may have changed
