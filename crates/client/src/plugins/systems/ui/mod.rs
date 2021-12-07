@@ -37,6 +37,12 @@ impl Plugin for UiPlugin {
                     .with_system(ui_pause_menu_system)
                     .label("pause"),
             )
+            .add_system_set(
+                SystemSet::on_update(GameState::StartOptions).with_system(ui_start_options_system),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::LoadOptions).with_system(ui_load_options_system),
+            )
             .add_plugin(EditUiPlugin);
     }
 }

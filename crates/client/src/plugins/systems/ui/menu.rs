@@ -1,12 +1,10 @@
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, style::Spacing, Vec2 as EVec2},
+    egui::{self, style::Spacing, Ui, Vec2 as EVec2},
     *,
 };
-use shared::prelude::*;
-
-use super::widgets::SelectAssetWidget;
-
+use shared::GameType;
+use shared::{prelude::*, CampaignDetails};
 /// Resource that tells us if the game is paused or not
 pub type Paused = bool;
 
@@ -15,19 +13,14 @@ pub struct MenuState {
     pub mode: Option<Handle<GameMode>>,
     pub map: Option<Handle<Map>>,
     pub theme: Option<Theme>,
+    pub campaign: Option<Campaign>,
+    pub save: Option<Save>,
 }
 
 pub(crate) fn ui_menu_system(
-    mut cmd: Commands,
     mut state: ResMut<State<GameState>>,
-    mut menu_state: ResMut<MenuState>,
-    mut settings_assets: ResMut<Assets<SettingsAsset>>,
     mut ui_settings: ResMut<EguiSettings>,
-    maps: ResMut<Assets<Map>>,
     ctx: ResMut<EguiContext>,
-    settings_handle: Res<Handle<SettingsAsset>>,
-    modes: Res<Assets<GameMode>>,
-    themes: Res<Themes>,
 ) {
     ui_settings.scale_factor = 2f64;
     egui::Area::new("menu")
@@ -38,89 +31,132 @@ pub(crate) fn ui_menu_system(
                 item_spacing: EVec2::splat(4f32),
                 window_padding: EVec2::new(24.0, 24.0),
                 button_padding: EVec2::new(12.0, 6.0),
-                // indent: (),
-                // slider_width: (),
-                // text_edit_width: (),
-                // icon_width: (),
-                // icon_spacing: (),
-                // tooltip_width: (),
-                // indent_ends_with_horizontal_line: (),
-                // combo_height: (),
-                // scroll_bar_width: (),
                 ..Default::default()
             };
 
-            let settings = settings_assets.get_mut(settings_handle.clone()).unwrap();
-            // Show high scores
-            ui.vertical(|ui| {
-                // Loop over highest scores and display a text line for each
-                for score in &settings.leaderboard.leaders {
-                    let (name, score) = score;
-                    ui.label(format!("{}: {}", name, score));
-                }
-
-                // Allow user to input name to be used in highscore table
-                ui.text_edit_singleline(&mut settings.active_name);
-            });
-
-            ui.vertical(|ui| {
-                ui.add(SelectAssetWidget::<GameMode> {
-                    name: "Mode selection",
-                    selection: &mut menu_state.mode,
-                    assets: &modes,
-                });
-                ui.add(SelectAssetWidget::<Map> {
-                    name: "Map selection",
-                    selection: &mut menu_state.map,
-                    assets: &maps,
-                });
-
-                // themes
-                // set the default theme if none
-                if menu_state.theme.is_none() {
-                    menu_state.theme = (*themes).iter().find(|x| x.name == "default").cloned();
-                }
-                egui::ComboBox::from_label("Theme selection")
-                    .selected_text(
-                        menu_state
-                            .theme
-                            .as_ref()
-                            .map(|t| &t.name)
-                            .unwrap_or(&"None selected".to_string()),
-                    )
-                    .show_ui(ui, |ui| {
-                        themes.iter().for_each(|theme| {
-                            if ui
-                                .selectable_value(
-                                    &mut menu_state.theme,
-                                    Some(theme.clone()),
-                                    theme.name.to_string(),
-                                )
-                                .clicked()
-                            {
-                                menu_state.theme = Some(theme.clone());
-                            }
-                        });
-                    })
-            });
-
-            // Start game button
+            // Main buttons
             ui.horizontal(|ui| {
-                if ui.button("Start").clicked() {
-                    cmd.insert_resource(menu_state.theme.as_ref().unwrap().clone());
-                    state
-                        .set(GameState::Main {
-                            mode: menu_state.mode.as_ref().unwrap().clone(),
-                            map: menu_state.map.as_ref().unwrap().clone(),
-                        })
-                        .ok();
+                // Select campaign screen
+                if ui.button("New").clicked() {
+                    state.set(GameState::StartOptions).ok();
+                }
+
+                if ui.button("Load").clicked() {
+                    state.set(GameState::LoadOptions).ok();
                 }
 
                 // Game editor
-                if ui.button("Editor").clicked() {
-                    state.set(GameState::Edit).ok();
+                if ui.button("Edit").clicked() {
+                    state.set(GameState::EditOptions).ok();
                 }
             });
+        });
+}
+
+pub(crate) fn ui_start_options_system(
+    mut menu_state: ResMut<MenuState>,
+    mut cmd: Commands,
+    mut state: ResMut<State<GameState>>,
+    ctx: ResMut<EguiContext>,
+    campaigns: Res<Campaigns>,
+) {
+    egui::Area::new("ui_start_options_menu")
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .show(ctx.ctx(), |ui| {
+            combo_box(
+                &mut menu_state.campaign,
+                ui,
+                "Campaign select",
+                campaigns.clone(),
+                |c| c.name,
+            );
+            // Start selected campaign
+            if ui.button("Start").clicked() {
+                if let Some(campaign) = &menu_state.campaign {
+                    if !campaign.levels.is_empty() {
+                        // Create save file
+                        let save = save_game(campaign, 0);
+
+                        // Set the save file as a current resource
+                        cmd.insert_resource(save);
+
+                        // Start game
+                        state
+                            .set(GameState::Main(GameType::Campaign(CampaignDetails {
+                                campaign: campaign.clone(),
+                                ..Default::default()
+                            })))
+                            .ok();
+                    }
+                }
+            }
+        });
+}
+
+fn combo_box<T, F>(prop: &mut Option<T>, ui: &mut Ui, label: &str, items: Vec<T>, display: F)
+where
+    T: Clone + PartialEq,
+    F: Fn(T) -> String,
+{
+    egui::ComboBox::from_label(label)
+        .selected_text(
+            prop.as_ref()
+                .map(|t| display(t.clone()))
+                .unwrap_or_else(|| "None selected".to_string()),
+        )
+        .show_ui(ui, |ui| {
+            items.iter().for_each(|item| {
+                if ui
+                    .selectable_value(prop, Some(item.clone()), display(item.clone()))
+                    .clicked()
+                {
+                    *prop = Some(item.clone());
+                }
+            });
+        });
+}
+
+pub(crate) fn ui_load_options_system(
+    mut menu_state: ResMut<MenuState>,
+    mut state: ResMut<State<GameState>>,
+    campaigns: Res<Campaigns>,
+    saves: Res<Assets<Save>>,
+    ctx: ResMut<EguiContext>,
+) {
+    egui::Area::new("load_options")
+        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+        .show(ctx.ctx(), |ui| {
+            // Main buttons
+            ui.vertical(|ui| {
+                combo_box(
+                    &mut menu_state.save,
+                    ui,
+                    "Save select",
+                    saves.iter().map(|(_, a)| a.clone()).collect(),
+                    |s| {
+                        format!(
+                            "{} - Playtime: {} minutes",
+                            s.updated_at.to_rfc2822(),
+                            (s.updated_at - s.created_at).num_minutes()
+                        )
+                    },
+                );
+            });
+            if ui.button("Load").clicked() {
+                if let Some(save) = &menu_state.save {
+                    campaigns.iter().for_each(|c| {
+                        if c.name == save.campaign {
+                            state
+                                .push(GameState::Main(GameType::Campaign(CampaignDetails {
+                                    campaign: c.clone(),
+                                    current_level_index: save.level,
+                                    campaign_scores: vec![],
+                                })))
+                                .ok();
+                        }
+                    });
+                }
+            }
         });
 }
 

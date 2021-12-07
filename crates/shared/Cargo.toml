@@ -16,6 +16,9 @@ bevy_asset_ron = { git = "https://github.com/inodentry/bevy_asset_ron" }
 rand = {version = "*"}
 tracing = "0.1.29"
 
+[dependencies.chrono]
+version = "0.4"
+features = ["serde"]
 
 [dependencies.bevy]
 version = "0.5"

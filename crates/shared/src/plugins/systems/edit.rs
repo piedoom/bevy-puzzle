@@ -4,7 +4,7 @@ use std::{fs::File, io::Write};
 
 use bevy::{prelude::*, render::camera::Camera};
 
-use crate::prelude::*;
+use crate::{prelude::*, GameDetails, GameType};
 
 use super::core::{destroy_map_system, reset_game_system};
 
@@ -136,10 +136,11 @@ fn process_events_system(
                     ..Default::default()
                 };
                 state
-                    .replace(GameState::Main {
+                    .replace(GameState::Main(GameType::Other(GameDetails {
                         mode: mode.clone(),
                         map: maps.add(map),
-                    })
+                        objective: Objective::FreePlay,
+                    })))
                     .ok();
             }
         }

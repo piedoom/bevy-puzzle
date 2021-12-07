@@ -1,7 +1,7 @@
 //! Systems and other data structures related to obtaining user input and modifying the game in some way
 use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
 
-use shared::prelude::*;
+use shared::{prelude::*, GameDetails};
 
 use crate::PlaySfxEvent;
 
@@ -72,8 +72,9 @@ fn rotate_active_system(
     keyboard: Res<Input<KeyCode>>,
     modes: Res<Assets<GameMode>>,
 ) {
-    if let GameState::Main { mode, .. } = state.current() {
-        let mode = modes.get(mode.clone()).unwrap();
+    if let GameState::Main(game_type) = state.current() {
+        let GameDetails { mode, .. } = game_type.get_details();
+        let mode = modes.get(mode).unwrap();
         if mode.can_rotate {
             let right_pressed = keyboard.just_pressed(KeyCode::D);
             let left_pressed = keyboard.just_pressed(KeyCode::A);

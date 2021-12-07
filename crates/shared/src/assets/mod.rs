@@ -2,12 +2,8 @@ mod campaign;
 mod map;
 mod mode;
 mod pattern;
+mod save;
 mod settings;
 mod theme;
 
-pub use campaign::*;
-pub use map::*;
-pub use mode::*;
-pub use pattern::*;
-pub use settings::*;
-pub use theme::*;
+pub use {campaign::*, map::*, mode::*, pattern::*, save::*, settings::*, theme::*};

@@ -3,7 +3,7 @@ use bevy::render::camera::{Camera, OrthographicProjection};
 use bevy_egui::egui::{self, *};
 use bevy_egui::{EguiContext, EguiSettings};
 
-use shared::prelude::*;
+use shared::{prelude::*, GameDetails};
 
 use super::widgets::{PatternWidget, SpeedWidget};
 
@@ -24,7 +24,8 @@ pub(crate) fn ui_main_system(
     ui_settings: Res<EguiSettings>,
 ) {
     // get current mode
-    if let GameState::Main { mode, .. } = state.current() {
+    if let GameState::Main(game_type) = state.current() {
+        let GameDetails { mode, .. } = game_type.get_details();
         if let Ok((camera, _projection, camera_transform)) = camera.get_single() {
             // cursor
             // get active position
@@ -97,7 +98,7 @@ pub(crate) fn ui_main_system(
             //     egui::Rect { min, max }
             // };
 
-            let mode = modes.get(mode.clone()).unwrap();
+            let mode = modes.get(mode).unwrap();
             egui::containers::Area::new("score")
                 .anchor(Align2::LEFT_TOP, egui::Vec2::splat(32f32))
                 //.fixed_pos(extents.left_top() + egui::Vec2::new(0f32, -32f32))

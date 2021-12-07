@@ -16,11 +16,13 @@ impl Plugin for AssetPlugin {
             .add_asset::<GameMode>()
             .add_asset::<Map>()
             .add_asset::<CampaignDescription>()
+            .add_asset::<Save>()
             .add_plugin(RonAssetPlugin::<GameMode>::new(&["mode"]))
             .add_plugin(RonAssetPlugin::<Map>::new(&["map"]))
             .add_plugin(RonAssetPlugin::<SettingsAsset>::new(&["rfg"]))
             .add_plugin(RonAssetPlugin::<ThemeDescription>::new(&["theme"]))
             .add_plugin(RonAssetPlugin::<CampaignDescription>::new(&["campaign"]))
+            .add_plugin(RonAssetPlugin::<Save>::new(&["save"]))
             .init_asset_loader::<PatternLoader>()
             .add_system_set(
                 // Load setup
@@ -154,6 +156,11 @@ fn init_load_system(
     let map_handles = &mut assets.load_folder("maps").expect("Could not load maps");
     loading.0.append(map_handles);
 
+    // Load all saves
+    let save_handles = &mut assets.load_folder("saves").expect("Could not load saves");
+    loading.0.append(save_handles);
+
+    // Watch for changes
     assets
         .watch_for_changes()
         .expect("could not watch for changes");

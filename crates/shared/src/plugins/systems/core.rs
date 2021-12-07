@@ -3,7 +3,7 @@
 
 use std::{fs::File, io::Write, time::Duration};
 
-use crate::prelude::*;
+use crate::{prelude::*, CampaignDetails, GameDetails, GameType, NextTransition};
 use bevy::{app::Events, asset::AssetPath, prelude::*, render::camera::Camera, utils::Instant};
 
 use super::Label;
@@ -30,7 +30,7 @@ impl Plugin for CorePuzzlePlugin {
                 SystemSet::on_update(GameState::main())
                     .with_system(scorer_system)
                     .with_system(placement_timer_tick_system)
-                    .with_system(level_win_loss_system)
+                    .with_system(level_win_system)
                     .label(Label::Process)
                     .after(Label::Listen),
             )
@@ -38,6 +38,9 @@ impl Plugin for CorePuzzlePlugin {
                 SystemSet::on_exit(GameState::main())
                     .with_system(destroy_map_system)
                     .with_system(reset_game_system),
+            )
+            .add_system_set(
+                SystemSet::on_update(GameState::win()).with_system(handle_transition_system),
             );
     }
 }
@@ -52,10 +55,11 @@ fn scorer_system(
     transforms: Query<&Transform>,
     modes: Res<Assets<GameMode>>,
 ) {
-    if let GameState::Main { mode, .. } = state.current() {
+    if let GameState::Main(game_type) = state.current() {
+        let GameDetails { mode, .. } = game_type.get_details();
         // Important little vec that keeps track of all the scoring tiles that will be added at the end of the system loop
         let mut scoring_tiles = vec![];
-        let mode = modes.get(mode.clone()).unwrap();
+        let mode = modes.get(mode).unwrap();
 
         // do the scoring
         match &mode.scorer {
@@ -201,30 +205,72 @@ fn scorer_system(
     }
 }
 
-/// Determines whether the specific level being played is win or loss
-fn level_win_loss_system(
-    current_level: Option<Res<CurrentLevel>>,
+/// Determines whether the specific level being played is win
+fn level_win_system(
+    mut state: ResMut<State<GameState>>,
     started: Option<Res<GameStarted>>,
     score: Res<Score>,
 ) {
-    if let (Some(level), Some(started)) = (current_level, started) {
-        match level.objective {
-            Objective::FreePlay => (), // no-op
-            Objective::Survive(duration) => {
-                // check to see if the player has surpassed the necessary duration
-                if Instant::now().duration_since(*started) >= duration {
-                    todo!("win");
+    if let Some(started) = started {
+        if let GameState::Main(game_type) = state.current() {
+            let GameDetails { objective, .. } = game_type.get_details();
+
+            let won = match objective {
+                Objective::FreePlay => false, // Infinite free play
+                Objective::Survive(duration) => {
+                    // check to see if the player has surpassed the necessary duration
+                    Instant::now().duration_since(*started) >= duration
                 }
-            }
-            Objective::TimeLimit {
-                required_score,
-                duration,
-            } => {
-                if Instant::now().duration_since(*started) >= duration && *score >= required_score {
-                    todo!("win");
+                Objective::TimeLimit {
+                    required_score,
+                    duration,
+                } => {
+                    Instant::now().duration_since(*started) >= duration && *score >= required_score
                 }
+            };
+
+            if won {
+                // Destructure the state (which we know is main, as this system only runs during the main game loop)
+                let transition = match game_type.get_campaign() {
+                    Some(c) => {
+                        // check to see if the last level has been completed
+                        match c.next_level() {
+                            Some((_, next_level_index)) => {
+                                NextTransition::NewLevel(GameType::Campaign(CampaignDetails {
+                                    campaign: c.campaign,
+                                    current_level_index: next_level_index,
+                                    campaign_scores: vec![], // TODO!
+                                }))
+                            }
+                            // TODO: This is basically a whole objective win scenario. Should probably do something better than just transition to menu later
+                            None => NextTransition::Menu,
+                        }
+                    }
+                    // no campaign, go back to the menus
+                    None => NextTransition::Menu,
+                };
+                state.replace(GameState::Win(transition)).ok();
             }
         }
+    }
+}
+
+fn handle_transition_system(mut state: ResMut<State<GameState>>) {
+    match state.current() {
+        GameState::Win(transition) => {
+            // Handle win screen
+            let next_state = match transition {
+                NextTransition::Menu => GameState::Menu,
+                NextTransition::NewLevel(next) => {
+                    let next_campaign = next
+                        .get_campaign()
+                        .expect("Should only use `NewLevel` when using campaigns");
+                    GameState::Main(GameType::Campaign(next_campaign))
+                }
+            };
+            state.replace(next_state).ok();
+        }
+        _ => (),
     }
 }
 
@@ -247,9 +293,10 @@ fn setup_system(
 ) {
     let settings = settings.get(current_setting.clone()).unwrap();
     cmd.insert_resource(GameStarted::now());
-    if let GameState::Main { mode, map, .. } = state.current() {
-        let mode = modes.get(mode.clone()).unwrap();
-        let map = maps.get(map.clone()).unwrap();
+    if let GameState::Main(game_type) = state.current() {
+        let GameDetails { map, mode, .. } = game_type.get_details();
+        let mode = modes.get(mode).unwrap();
+        let map = maps.get(map).unwrap();
         if mode.patterns.is_empty() {
             panic!("Current GameMode provides no patterns")
         }
@@ -367,10 +414,8 @@ fn process_events_system(
                 // remove all old actives to prepare to add a new one
                 active.for_each_mut(|(e, ..)| cmd.entity(e).despawn_recursive());
 
-                if let GameState::Main {
-                    mode, map: _map, ..
-                } = state.current()
-                {
+                if let GameState::Main(game_type) = state.current() {
+                    let GameDetails { mode, .. } = game_type.get_details();
                     let mode = modes.get(mode.clone()).unwrap();
                     let timer = step.create_timer(mode);
 
@@ -484,7 +529,6 @@ pub(crate) fn reset_game_system(
     *score = 0;
     *next = Handle::<Pattern>::default();
     *bag = Bag::default();
-    cmd.remove_resource::<CurrentLevel>();
     step.reset();
     active.for_each(|entity| cmd.entity(entity).despawn_recursive());
 }
