@@ -14,12 +14,28 @@ pub struct MenuState {
     pub theme: Option<Theme>,
     pub campaign: Option<Campaign>,
     pub save: Option<Save>,
+    pub page: MenuPage,
+}
+
+/// Determines which page of the initial menu we are on
+#[derive(Default, Clone, Copy)]
+pub enum MenuPage {
+    #[default]
+    Initial,
+    NewCampaign,
+    LoadCampaign,
+    NewCustom,
+    NewMap,
 }
 
 pub(crate) fn ui_menu_system(
+    mut cmd: Commands,
     mut state: ResMut<State<GameState>>,
     mut ui_settings: ResMut<EguiSettings>,
+    mut menu_state: ResMut<MenuState>,
+    saves: Res<Assets<Save>>,
     ctx: ResMut<EguiContext>,
+    campaigns: Res<Campaigns>,
 ) {
     ui_settings.scale_factor = 2f64;
     egui::Area::new("menu")
@@ -32,68 +48,115 @@ pub(crate) fn ui_menu_system(
                 button_padding: EVec2::new(12.0, 6.0),
                 ..Default::default()
             };
+            let current_page = menu_state.page;
+            match current_page {
+                MenuPage::Initial => {
+                    // Main buttons
+                    ui.horizontal(|ui| {
+                        if ui.button("New Campaign").clicked() {
+                            menu_state.page = MenuPage::NewCampaign;
+                        }
 
-            // Main buttons
-            ui.horizontal(|ui| {
-                // Select campaign screen
-                if ui.button("New").clicked() {
-                    state.set(GameState::StartOptions).ok();
+                        if ui.button("Load Campaign").clicked() {
+                            menu_state.page = MenuPage::LoadCampaign;
+                        }
+
+                        if ui.button("Custom Game").clicked() {
+                            menu_state.page = MenuPage::NewCustom;
+                        }
+
+                        if ui.button("Map Editor").clicked() {
+                            menu_state.page = MenuPage::NewMap;
+                        }
+                    });
                 }
+                MenuPage::NewCampaign => {
+                    // Show all campaigns
+                    combo_box(
+                        &mut menu_state.campaign,
+                        ui,
+                        "Campaign select",
+                        campaigns.clone(),
+                        |c| c.name,
+                    );
+                    ui.horizontal(|ui| {
+                        if ui.button("Back").clicked() {
+                            menu_state.page = MenuPage::Initial;
+                        };
+                        // Start selected campaign
+                        if ui.button("Start").clicked() {
+                            if let Some(campaign) = &menu_state.campaign {
+                                if !campaign.levels.is_empty() {
+                                    // Set the save file as a current resource
+                                    cmd.insert_resource(save_game(campaign, 0));
 
-                if ui.button("Load").clicked() {
-                    state.set(GameState::LoadOptions).ok();
+                                    // Start game (go to pre-game screen)
+                                    state
+                                        .set(GameState::PreGame(GameType::Campaign(
+                                            CampaignDetails {
+                                                campaign: campaign.clone(),
+                                                ..Default::default()
+                                            },
+                                        )))
+                                        .ok();
+                                }
+                            }
+                        }
+                    });
                 }
-
-                // Game editor
-                if ui.button("Edit").clicked() {
-                    state.set(GameState::EditOptions).ok();
+                MenuPage::LoadCampaign => {
+                    // Main buttons
+                    ui.vertical(|ui| {
+                        combo_box(
+                            &mut menu_state.save,
+                            ui,
+                            "Save select",
+                            saves.iter().map(|(_, a)| a.clone()),
+                            |s| {
+                                format!(
+                                    "{} - Playtime: {} minutes",
+                                    s.updated_at.to_rfc2822(),
+                                    (s.updated_at - s.created_at).num_minutes()
+                                )
+                            },
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        if ui.button("Back").clicked() {
+                            menu_state.page = MenuPage::Initial;
+                        };
+                        if ui.button("Load").clicked() {
+                            if let Some(save) = &menu_state.save {
+                                campaigns.iter().for_each(|c| {
+                                    if c.name == save.campaign {
+                                        state
+                                            .push(GameState::PreGame(GameType::Campaign(
+                                                CampaignDetails {
+                                                    campaign: c.clone(),
+                                                    level_index: save.level,
+                                                    campaign_scores: vec![],
+                                                },
+                                            )))
+                                            .ok();
+                                    }
+                                });
+                            }
+                        }
+                    });
                 }
-            });
-        });
-}
-
-pub(crate) fn ui_start_options_system(
-    mut menu_state: ResMut<MenuState>,
-    mut cmd: Commands,
-    mut state: ResMut<State<GameState>>,
-    ctx: ResMut<EguiContext>,
-    campaigns: Res<Campaigns>,
-) {
-    egui::Area::new("ui_start_options_menu")
-        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-        .show(ctx.ctx(), |ui| {
-            combo_box(
-                &mut menu_state.campaign,
-                ui,
-                "Campaign select",
-                campaigns.clone(),
-                |c| c.name,
-            );
-            // Start selected campaign
-            if ui.button("Start").clicked() {
-                if let Some(campaign) = &menu_state.campaign {
-                    if !campaign.levels.is_empty() {
-                        // Create save file
-                        let save = save_game(campaign, 0);
-
-                        // Set the save file as a current resource
-                        cmd.insert_resource(save);
-
-                        // Start game (go to pre-game screen)
-                        state
-                            .set(GameState::PreGame(GameType::Campaign(CampaignDetails {
-                                campaign: campaign.clone(),
-                                ..Default::default()
-                            })))
-                            .ok();
-                    }
-                }
+                MenuPage::NewCustom => todo!(),
+                MenuPage::NewMap => todo!(),
             }
         });
 }
 
-fn combo_box<T, F>(prop: &mut Option<T>, ui: &mut Ui, label: &str, items: Vec<T>, display: F)
-where
+fn combo_box<T, F>(
+    prop: &mut Option<T>,
+    ui: &mut Ui,
+    label: &str,
+    items: impl IntoIterator<Item = T>,
+    display: F,
+) where
     T: Clone + PartialEq,
     F: Fn(T) -> String,
 {
@@ -104,58 +167,14 @@ where
                 .unwrap_or_else(|| "None selected".to_string()),
         )
         .show_ui(ui, |ui| {
-            items.iter().for_each(|item| {
+            items.into_iter().for_each(|item| {
                 if ui
                     .selectable_value(prop, Some(item.clone()), display(item.clone()))
                     .clicked()
                 {
-                    *prop = Some(item.clone());
+                    *prop = Some(item);
                 }
             });
-        });
-}
-
-pub(crate) fn ui_load_options_system(
-    mut menu_state: ResMut<MenuState>,
-    mut state: ResMut<State<GameState>>,
-    campaigns: Res<Campaigns>,
-    saves: Res<Assets<Save>>,
-    ctx: ResMut<EguiContext>,
-) {
-    egui::Area::new("load_options")
-        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-        .show(ctx.ctx(), |ui| {
-            // Main buttons
-            ui.vertical(|ui| {
-                combo_box(
-                    &mut menu_state.save,
-                    ui,
-                    "Save select",
-                    saves.iter().map(|(_, a)| a.clone()).collect(),
-                    |s| {
-                        format!(
-                            "{} - Playtime: {} minutes",
-                            s.updated_at.to_rfc2822(),
-                            (s.updated_at - s.created_at).num_minutes()
-                        )
-                    },
-                );
-            });
-            if ui.button("Load").clicked() {
-                if let Some(save) = &menu_state.save {
-                    campaigns.iter().for_each(|c| {
-                        if c.name == save.campaign {
-                            state
-                                .push(GameState::PreGame(GameType::Campaign(CampaignDetails {
-                                    campaign: c.clone(),
-                                    level_index: save.level,
-                                    campaign_scores: vec![],
-                                })))
-                                .ok();
-                        }
-                    });
-                }
-            }
         });
 }
 

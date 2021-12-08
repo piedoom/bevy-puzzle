@@ -1,3 +1,4 @@
+#![feature(derive_default_enum)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
