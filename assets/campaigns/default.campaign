@@ -5,8 +5,18 @@
             map: "default",
             options: (
                 patterns: Some(["quad", "bracket right", "bracket left", "snake left", "snake right", "pyramid"]),
+                timer_rate: Progressive(
+                    start_rate: Duration(secs: 5, nanos: 0),
+                    end_rate: Duration(secs: 2, nanos: 0),
+                    steps: 16,
+                    delay: 0,
+                ),
             ),
-            objective: Survive(Duration(secs: 60, nanos: 0)),
+            objective: TimeLimit (
+                required_score: 50,
+                duration: Duration(secs: 60, nanos: 0),
+            ),
+            // objective: Survive(Duration(secs: 60, nanos: 0)),
         ),
         (
             map: "skew",

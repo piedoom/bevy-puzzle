@@ -92,9 +92,9 @@ impl Default for TimerRate {
     fn default() -> Self {
         Self::Progressive {
             start_rate: Duration::new(3, 0),
-            end_rate: Duration::new(1, 0),
-            steps: 64,
-            delay: 8,
+            end_rate: Duration::from_secs_f32(1.5),
+            steps: 16,
+            delay: 0,
         }
     }
 }

@@ -5,6 +5,7 @@ use shared::prelude::*;
 
 use self::edit::EditUiPlugin;
 
+pub mod colors;
 mod edit;
 /// Systems that need to run during the [`crate::GameState::Main`] state
 mod game;

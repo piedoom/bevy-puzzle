@@ -1,9 +1,12 @@
 use bevy::prelude::*;
 use bevy::render::camera::{Camera, OrthographicProjection};
-use bevy_egui::egui::{self, *};
+use bevy::utils::Instant;
+use bevy_egui::egui::{self, Rect, *};
 use bevy_egui::{EguiContext, EguiSettings};
 
 use shared::{prelude::*, GameDetails};
+
+use crate::plugins::systems::ui::colors;
 
 use super::widgets::PatternWidget;
 
@@ -19,6 +22,7 @@ pub(crate) fn ui_main_system(
     next_up: Res<NextUp>,
     patterns: Res<Assets<Pattern>>,
     state: Res<State<GameState>>,
+    started: Res<GameStarted>,
     //  bounds: Res<Bounds<bevy::math::Vec2>>,
     ui_settings: Res<EguiSettings>,
 ) {
@@ -30,10 +34,12 @@ pub(crate) fn ui_main_system(
             // get active position
             active
                 .get_single()
-                .map(|(_, timer, t)| {
-                    if let Some(pos) =
-                        camera.world_to_screen(&windows, camera_transform, t.translation)
-                    {
+                .map(|(_, timer, active_transform)| {
+                    if let Some(pos) = camera.world_to_screen(
+                        &windows,
+                        camera_transform,
+                        active_transform.translation,
+                    ) {
                         let window_height =
                             windows.get_primary().map(|x| x.height()).unwrap_or(0f32);
                         let margin = 64f32 * ui_settings.scale_factor as f32;
@@ -57,21 +63,14 @@ pub(crate) fn ui_main_system(
                                 paint.add(Shape::circle_filled(
                                     Pos2::new(pos.x + radius, pos.y + radius),
                                     radius,
-                                    Color32::from_rgb(46, 45, 91),
-                                ));
-
-                                // Current speed shape
-                                paint.add(Shape::circle_stroke(
-                                    Pos2::new(pos.x + radius, pos.y + radius),
-                                    radius * step.percent(&options).unwrap_or(1.),
-                                    Stroke::new(STROKE_WIDTH, Color32::RED),
+                                    colors::BACKGROUND_LIGHT,
                                 ));
 
                                 // Placement timer shape
                                 paint.add(Shape::circle_filled(
                                     Pos2::new(pos.x + radius, pos.y + radius),
                                     radius * timer.get().percent(),
-                                    Color32::GREEN,
+                                    colors::GREEN,
                                 ));
                             });
                     }
@@ -114,7 +113,96 @@ pub(crate) fn ui_main_system(
                 .anchor(Align2::LEFT_TOP, egui::Vec2::splat(32f32))
                 .show(ctx.ctx(), |ui| {
                     ui.vertical(|ui| {
-                        ui.heading(format!("Score: {}", *score));
+                        // Dispalay any objective related info
+                        let details = game_type.get_details();
+                        match details.objective {
+                            Objective::FreePlay => (),
+                            Objective::Survive(duration) => {
+                                // Countdown timer
+                                let secs_left = duration.as_secs()
+                                    - Instant::now().duration_since(*started).as_secs();
+
+                                ui.vertical(|ui| {
+                                    ui.heading("Survival");
+                                    ui.label(format!("Time left: {}", secs_left));
+                                    ui.label(format!("Score: {}", **score));
+                                });
+                            }
+                            Objective::TimeLimit {
+                                required_score,
+                                duration,
+                            } => {
+                                // Countdown timer
+                                let secs_left = duration.as_secs()
+                                    - Instant::now().duration_since(*started).as_secs();
+
+                                ui.vertical(|ui| {
+                                    ui.heading("Time Trial");
+                                    ui.label(format!("Time left: {}", secs_left));
+                                    ui.label(format!("Score: {}/{}", **score, required_score));
+                                });
+                            }
+                        }
+                    });
+                });
+
+            egui::containers::Area::new("speed")
+                .anchor(Align2::CENTER_BOTTOM, egui::Vec2::ZERO)
+                .show(ctx.ctx(), |ui| {
+                    let window_size = windows
+                        .get_primary()
+                        .map(|window| egui::Vec2::new(window.width(), window.height()))
+                        .unwrap_or(egui::Vec2::ZERO);
+                    let window_width = window_size.x;
+                    let size = egui::Vec2::new(300f32.clamp(0.0, window_width), 20.);
+                    ui.vertical(|ui| {
+                        let (res, paint) = ui.allocate_painter(size, Sense::click());
+                        match options.timer_rate {
+                            TimerRate::Constant(t) => (),
+                            TimerRate::Progressive { steps, .. } => {
+                                let block_width = size.x / steps as f32;
+                                let rect = ui.available_rect_before_wrap_finite();
+                                // TODO: Paint squares representing step speed
+                                for i in 0..steps {
+                                    let color = if i <= step.current() {
+                                        let percent = i as f32 / steps as f32;
+                                        if percent <= 0.33 {
+                                            colors::GREEN
+                                        } else if percent > 0.33 && percent <= 0.66 {
+                                            colors::YELLOW
+                                        } else {
+                                            colors::RED
+                                        }
+                                    } else {
+                                        colors::BACKGROUND_LIGHT
+                                    };
+                                    let shrink = if i <= step.current() { 1.0 } else { 2.0 };
+                                    ui.label("Speed");
+                                    // Background shape
+                                    paint.add(Shape::rect_filled(
+                                        Rect::from_min_max(
+                                            Pos2::new(
+                                                rect.min.x + (i as f32 * block_width),
+                                                rect.min.y - size.y,
+                                            ),
+                                            Pos2::new(
+                                                rect.min.x + ((i + 1) as f32 * block_width),
+                                                rect.max.y,
+                                            ),
+                                        )
+                                        .shrink(shrink),
+                                        0.,
+                                        color,
+                                    ));
+                                }
+                            }
+                            TimerRate::Endless {
+                                start_rate,
+                                end_rate,
+                                delta,
+                                delay,
+                            } => (),
+                        }
                     });
                 });
 

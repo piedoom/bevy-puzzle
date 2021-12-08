@@ -219,7 +219,7 @@ fn level_win_system(
                     required_score,
                     duration,
                 } => {
-                    Instant::now().duration_since(*started) >= duration && *score >= required_score
+                    Instant::now().duration_since(*started) >= duration && **score >= required_score
                 }
             };
 
@@ -481,7 +481,7 @@ pub(crate) fn reset_game_system(
 ) {
     // Clean up
     cameras.for_each(|e| cmd.entity(e).despawn_recursive());
-    *score = 0;
+    *score = Score::default();
     next.set(Handle::<Pattern>::default());
     *bag = Bag::default();
     step.reset();

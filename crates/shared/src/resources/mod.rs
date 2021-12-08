@@ -1,11 +1,35 @@
-use bevy::core::Timer;
+mod input;
+mod tile;
 
 use crate::prelude::*;
+use bevy::core::Timer;
+use std::ops::{Add, AddAssign, Deref};
+pub use {input::*, tile::*};
 
-mod input;
-mod leaderboard;
-mod tile;
-pub use {input::*, leaderboard::*, tile::*};
+#[derive(Default)]
+pub struct Score(usize);
+
+impl Add for Score {
+    type Output = Score;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Score(self.0 + rhs.0)
+    }
+}
+
+impl AddAssign<usize> for Score {
+    fn add_assign(&mut self, rhs: usize) {
+        self.0 += rhs;
+    }
+}
+
+impl Deref for Score {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Default)]
 /// Counts the number of piece placements, and is used to progress various
@@ -73,7 +97,9 @@ impl Step {
                 // map step to range of values
                 let percent = self.percent(options).unwrap();
                 Timer::from_seconds(
-                    percent.lerp(start_rate.as_secs_f32(), end_rate.as_secs_f32()),
+                    start_rate
+                        .as_secs_f32()
+                        .lerp(end_rate.as_secs_f32(), percent),
                     false,
                 )
                 .into()
