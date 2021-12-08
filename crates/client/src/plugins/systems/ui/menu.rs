@@ -88,7 +88,8 @@ pub(crate) fn ui_menu_system(
                             if let Some(campaign) = &menu_state.campaign {
                                 if !campaign.levels.is_empty() {
                                     // Set the save file as a current resource
-                                    cmd.insert_resource(save_game(campaign, 0));
+                                    let save = Save::new(campaign, 0);
+                                    cmd.insert_resource(save);
 
                                     // Start game (go to pre-game screen)
                                     state
@@ -276,7 +277,8 @@ pub(crate) fn ui_end_screen_system(mut state: ResMut<State<GameState>>, ctx: Res
                     let next_campaign = next
                         .get_campaign()
                         .expect("Should only use `NewLevel` when using campaigns");
-                    save_game(&next_campaign.campaign, next_campaign.level_index);
+                    let save = Save::new(&next_campaign.campaign, next_campaign.level_index);
+                    save_to_file(save);
                     GameState::PreGame(GameType::Campaign(next_campaign))
                 }
             };

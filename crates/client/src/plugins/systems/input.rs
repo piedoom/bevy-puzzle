@@ -116,7 +116,7 @@ fn add_to_hold_system(
     // TODO: probably should check if unswappable is in the active entity instead of just existing
     if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
         let pattern = hold.swap(active_pattern.get_single().unwrap().clone());
-        let pattern = pattern.unwrap_or_else(|| patterns.get(next_up.clone()).unwrap().clone());
+        let pattern = pattern.unwrap_or_else(|| patterns.get(next_up.get()).unwrap().clone());
         if let Some(theme) = theme {
             sfx.send(PlaySfxEvent::new(theme.sfx.swap.clone()));
         }

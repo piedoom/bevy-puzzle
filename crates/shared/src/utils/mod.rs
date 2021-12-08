@@ -24,15 +24,3 @@ where
         }
     }
 }
-
-// pub(crate) struct Bounds {
-//     pub(crate) world: egui::Rect,
-// }
-
-// impl Default for Bounds {
-//     fn default() -> Self {
-//         Self {
-//             world: egui::Rect::NOTHING,
-//         }
-//     }
-// }

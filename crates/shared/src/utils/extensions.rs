@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 pub trait TransformExt {
-    /// Returns a two-dimentional rounded coordinates useful for comparing game pieces  
+    /// Converts the game transform into whole-number coordinates corresponding to the
+    /// game board position. This is useful for comparing game pieces.
     fn board_position(&self) -> Vec2;
 }
 
@@ -53,6 +54,14 @@ where
 }
 
 pub trait F32Ext {
+    /// Interpolate a value with another
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// let a: f32 = 0.0.lerp(2.0, 0.5);
+    /// assert_eq!(a, 1.0);
+    /// ```
     fn lerp(&self, other: f32, scalar: f32) -> f32;
 }
 

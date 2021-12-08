@@ -70,7 +70,7 @@ pub(crate) fn ui_main_system(
                                 // Placement timer shape
                                 paint.add(Shape::circle_filled(
                                     Pos2::new(pos.x + radius, pos.y + radius),
-                                    radius * timer.percent(),
+                                    radius * timer.get().percent(),
                                     Color32::GREEN,
                                 ));
                             });
@@ -133,7 +133,7 @@ pub(crate) fn ui_main_system(
 
                         // Create a widget for our next-up pattern, if we are allowed to view it
                         if options.can_peek {
-                            if let Some(next_pattern) = patterns.get(next_up.clone()) {
+                            if let Some(next_pattern) = patterns.get(next_up.get()) {
                                 ui.add(PatternWidget::new(Some(next_pattern)).size(128f32));
                                 ui.heading("Next");
                                 ui.add_space(50f32);

@@ -318,18 +318,19 @@ fn setup_system(
                 .map(|(x, _)| patterns.get_handle(x))
                 .collect(),
         );
-        *next = bag.next().unwrap();
+        next.set(bag.next().unwrap());
         events.send(GameEvent::SetActivePattern {
-            pattern: patterns.get(next.clone()).unwrap().clone(),
+            pattern: patterns.get(next.get()).unwrap().clone(),
             unswappable: false,
         });
-        *next = bag.next().unwrap();
+        next.set(bag.next().unwrap());
 
         // remove any piece from the hold
         hold.clear();
     }
 }
 
+/// Progress the placement timer
 fn placement_timer_tick_system(
     mut active_timer: Query<&mut PlacementTimer, With<ActiveEntity>>,
     mut events: EventWriter<GameEvent>,
@@ -338,8 +339,8 @@ fn placement_timer_tick_system(
     active_timer
         .get_single_mut()
         .map(|mut t| {
-            t.tick(time.delta());
-            if t.just_finished() {
+            t.get_mut().tick(time.delta());
+            if t.get().just_finished() {
                 // Commit the piece
                 events.send(GameEvent::CommitActive {
                     loss_on_failure: true,
@@ -437,7 +438,7 @@ fn process_events_system(
                     });
 
                     // This check is needed in case the event is processed after a change that resets our next piece
-                    if let Some(pattern) = pattern_assets.get(next.clone()) {
+                    if let Some(pattern) = pattern_assets.get(next.get().clone()) {
                         // Set active to our next up piece
                         send_events.push(GameEvent::SetActivePattern {
                             pattern: pattern.clone(),
@@ -448,7 +449,7 @@ fn process_events_system(
                         step.next();
 
                         // Advance the pieces
-                        *next = bag.next().unwrap();
+                        next.set(bag.next().unwrap());
                     }
                 }
                 // If the event is set to lose on failure to place, send a loss event
@@ -481,7 +482,7 @@ pub(crate) fn reset_game_system(
     // Clean up
     cameras.for_each(|e| cmd.entity(e).despawn_recursive());
     *score = 0;
-    *next = Handle::<Pattern>::default();
+    next.set(Handle::<Pattern>::default());
     *bag = Bag::default();
     step.reset();
     active.for_each(|entity| cmd.entity(entity).despawn_recursive());

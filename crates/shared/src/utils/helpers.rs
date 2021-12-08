@@ -1,10 +1,12 @@
+use crate::prelude::*;
+use bevy::{asset::AssetPath, ecs::component::Component, prelude::*};
 use std::{fs::File, io::Write, path::PathBuf};
 
-use bevy::{asset::AssetPath, ecs::component::Component, prelude::*};
-
-use crate::prelude::*;
-
 /// Transition states in a fn as to avoid invalid states
+/// Types `F` & `T` are the initial and final transition states respectively.
+///
+/// * `cmd` - a mutable reference to a system's [`Commands`]
+/// * `entity` - the entity to which the component state is removed and attached
 #[inline(always)]
 pub fn transition<F, T>(cmd: &mut Commands, entity: Entity)
 where
@@ -14,8 +16,10 @@ where
     cmd.entity(entity).remove::<F>().insert(T::default());
 }
 
-pub fn save_game(campaign: &Campaign, level: usize) -> Save {
-    let save = Save::new(campaign, level);
+/// Create a new save file with the created-at (current) timestamp as the filename
+///
+/// * `save` - the [`Save`] to write to file
+pub fn save_to_file(save: Save) -> Save {
     if let Ok(text) = ron::to_string(&save) {
         let path = AssetPath::from(PathBuf::from(format!(
             "assets/saves/{}.save",

@@ -45,7 +45,7 @@ fn animate_active_system(
                             Vec3::ONE,
                             placement_timer
                                 .get_single()
-                                .map(|t| t.percent())
+                                .map(|t| t.get().percent())
                                 .unwrap_or(0f32),
                         )
                     })
