@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use shared::prelude::*;
 
+const BG_COLOR: &str = "1B1920";
 pub struct StylePlugin;
 
 impl Plugin for StylePlugin {
@@ -12,6 +13,8 @@ impl Plugin for StylePlugin {
                 .before(Label::React)
         };
 
+        // Put systems in a reusable closure so we can easily add it to both
+        // main game and edit states, which both use tile styling.
         let react = |state: GameState| -> SystemSet {
             SystemSet::on_update(state)
                 .with_system(style_blocks_system)
@@ -21,7 +24,7 @@ impl Plugin for StylePlugin {
                 .after(Label::Process)
         };
 
-        app.insert_resource(ClearColor(Color::hex("1B1920").unwrap()))
+        app.insert_resource(ClearColor(Color::hex(BG_COLOR).unwrap()))
             .add_system_set(process(GameState::game()))
             .add_system_set(react(GameState::game()))
             .add_system_set(process(GameState::edit()))
@@ -29,22 +32,28 @@ impl Plugin for StylePlugin {
     }
 }
 
+/// Animate the active tiles to slowly grow to full size depending on
+/// [`PlacementTimer`] percentage completion
 fn animate_active_system(
     mut transforms: Query<&mut Transform>,
     active: Query<&Children, With<ActiveEntity>>,
     placement_timer: Query<&PlacementTimer, With<ActiveEntity>>,
 ) {
+    // Get the single active and iterate over its children
     active
         .get_single()
         .map(|p| {
             p.iter().for_each(|e| {
+                // Get the transform of each child and modify its scale
                 transforms
                     .get_mut(*e)
                     .map(|mut t| {
+                        // Interpolate the scale between 0.95 and 1.0
                         t.scale = Vec3::new(0.95, 0.95, 0.0).lerp(
                             Vec3::ONE,
                             placement_timer
                                 .get_single()
+                                // get the `percent()` of this timer as the scalar
                                 .map(|t| t.get().percent())
                                 .unwrap_or(0f32),
                         )
@@ -55,6 +64,16 @@ fn animate_active_system(
         .ok();
 }
 
+/// Adds and removes components that adjust the visual stylle of tile patterns
+/// All parameters operated on tiles that have been modified in the last step.
+/// * `empty` - Tiles that have been marked as empty
+/// * `scored` - Tiles that have been marked as scored
+/// * `invalid` - Tiles that have been marked as invalid this is a combination
+/// of finding pieces underneath the active and seeing if they are full. If
+/// they are full, it is invalid. If not, it is hovered.
+/// * `hovered` - Tiles that are underneath the active pattern but not full
+/// * `unhovered` - Tiles that have just stopped being hovered
+/// * `uninvalidated` - like unhovered but for invalid
 fn style_blocks_system(
     mut cmd: Commands,
     mut transforms: Query<&mut Transform>,
@@ -68,6 +87,7 @@ fn style_blocks_system(
             // With<GameBoard>,
         ),
     >,
+
     scored: Query<Entity, Added<tile_states::Scored>>,
     invalid: Query<
         Entity,
@@ -132,6 +152,7 @@ fn style_blocks_system(
     }
 }
 
+/// Animate scored tiles to shrink out
 pub(crate) fn scored_effect_system(
     mut cmd: Commands,
     time: Res<Time>,
@@ -147,6 +168,7 @@ pub(crate) fn scored_effect_system(
     });
 }
 
+/// Helper system to add sprites to new tiles
 pub(crate) fn add_sprite_to_tiles_system(
     mut cmd: Commands,
     query: Query<(Entity, &Transform), Added<Tile>>,
