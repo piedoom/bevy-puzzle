@@ -116,7 +116,16 @@ pub(crate) fn ui_main_system(
                         // Dispalay any objective related info
                         let details = game_type.get_details();
                         match details.objective {
-                            Objective::FreePlay => (),
+                            Objective::FreePlay => {
+                                ui.vertical(|ui| {
+                                    ui.heading("Free Play");
+                                    ui.label(format!(
+                                        "Time elapsed: {}",
+                                        Instant::now().duration_since(*started).as_secs()
+                                    ));
+                                    ui.label(format!("Score: {}", **score));
+                                });
+                            }
                             Objective::Survive(duration) => {
                                 // Countdown timer
                                 let secs_left = duration.as_secs()
@@ -154,15 +163,16 @@ pub(crate) fn ui_main_system(
                         .map(|window| egui::Vec2::new(window.width(), window.height()))
                         .unwrap_or(egui::Vec2::ZERO);
                     let window_width = window_size.x;
-                    let size = egui::Vec2::new(300f32.clamp(0.0, window_width), 20.);
+                    let size = egui::Vec2::new(300f32.clamp(0.0, window_width), 40.);
                     ui.vertical(|ui| {
-                        let (res, paint) = ui.allocate_painter(size, Sense::click());
+                        let (_response, paint) = ui.allocate_painter(size, Sense::click());
                         match options.timer_rate {
-                            TimerRate::Constant(t) => (),
+                            TimerRate::Constant(_) => (),
                             TimerRate::Progressive { steps, .. } => {
                                 let block_width = size.x / steps as f32;
                                 let rect = ui.available_rect_before_wrap_finite();
                                 // TODO: Paint squares representing step speed
+                                ui.label("Speed");
                                 for i in 0..steps {
                                     let color = if i <= step.current() {
                                         let percent = i as f32 / steps as f32;
@@ -177,7 +187,7 @@ pub(crate) fn ui_main_system(
                                         colors::BACKGROUND_LIGHT
                                     };
                                     let shrink = if i <= step.current() { 1.0 } else { 2.0 };
-                                    ui.label("Speed");
+
                                     // Background shape
                                     paint.add(Shape::rect_filled(
                                         Rect::from_min_max(
@@ -196,12 +206,7 @@ pub(crate) fn ui_main_system(
                                     ));
                                 }
                             }
-                            TimerRate::Endless {
-                                start_rate,
-                                end_rate,
-                                delta,
-                                delay,
-                            } => (),
+                            TimerRate::Endless { .. } => (),
                         }
                     });
                 });

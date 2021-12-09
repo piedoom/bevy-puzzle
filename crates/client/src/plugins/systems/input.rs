@@ -1,9 +1,7 @@
 //! Systems and other data structures related to obtaining user input and modifying the game in some way
-use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
-
-use shared::{prelude::*, GameDetails};
-
 use crate::PlaySfxEvent;
+use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
+use shared::prelude::*;
 
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
@@ -139,9 +137,7 @@ fn click_commit_system(
         if let Some(theme) = theme {
             sfx.send(PlaySfxEvent::new(theme.sfx.place.clone()));
         }
-        events.send(GameEvent::CommitActive {
-            loss_on_failure: false,
-        });
+        events.send(GameEvent::CommitActive);
     }
 }
 

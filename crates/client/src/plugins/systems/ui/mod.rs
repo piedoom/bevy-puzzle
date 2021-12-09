@@ -39,7 +39,7 @@ impl Plugin for UiPlugin {
                     .label("pause"),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::post_game()).with_system(ui_end_screen_system),
+                SystemSet::on_update(GameState::post_game()).with_system(ui_post_game_system),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::pre_game()).with_system(ui_pre_game_menu_system),

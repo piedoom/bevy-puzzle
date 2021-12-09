@@ -1,4 +1,5 @@
 #![feature(derive_default_enum)]
+#![feature(let_else)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
@@ -12,13 +13,16 @@ pub mod resources;
 pub mod utils;
 
 pub mod prelude {
-    pub use super::GameState;
     use super::*;
+    pub use super::{
+        CampaignDetails, GameDetails, GameResult, GameState, GameType, PostGameDetails,
+    };
     pub use assets::*;
     pub use components::*;
     pub use events::*;
     pub use plugins::*;
     pub use resources::*;
+    pub use std::time::Duration;
     pub use utils::*;
 }
 
@@ -47,20 +51,25 @@ pub enum GameState {
     /// The main game state, where all the fun stuff happens
     Game(GameType),
     /// A post-game state that can show info like post-game stats
-    PostGame(NextTransition),
+    PostGame(PostGameDetails),
     /// A pause state. Usually this should be `push`ed and `pop`ped
     Pause,
     /// Edit state (to be changed)
     Edit,
 }
 
-/// Contains information on where a state should transition after the current state.
-/// Used extensively in [`GameState::PostGame`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub enum NextTransition {
+pub struct PostGameDetails {
+    pub game_type: GameType,
+    pub score: usize,
+    pub result: GameResult,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub enum GameResult {
     #[default]
-    Menu,
-    NewLevel(GameType),
+    Lose,
+    Win,
 }
 
 /// Additional information that is required to run the game. This may be provided

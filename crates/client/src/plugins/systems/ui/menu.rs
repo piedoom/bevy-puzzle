@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, style::Spacing, Ui, Vec2 as EVec2},
+    egui::{self, style::Spacing, Align2, Ui, Vec2 as EVec2},
     *,
 };
+use shared::GameType;
 use shared::{prelude::*, CampaignDetails};
-use shared::{GameType, NextTransition};
 /// Resource that tells us if the game is paused or not
 pub type Paused = bool;
 
@@ -267,33 +267,50 @@ pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: Res
         });
 }
 
-pub(crate) fn ui_end_screen_system(mut state: ResMut<State<GameState>>, ctx: ResMut<EguiContext>) {
-    let mut next_state = || match state.current() {
-        GameState::PostGame(transition) => {
-            // Handle win screen
-            let next = match transition {
-                NextTransition::Menu => GameState::Menu,
-                NextTransition::NewLevel(next) => {
-                    let next_campaign = next
-                        .get_campaign()
-                        .expect("Should only use `NewLevel` when using campaigns");
-                    let save = Save::new(&next_campaign.campaign, next_campaign.level_index);
-                    save_to_file(save);
-                    GameState::PreGame(GameType::Campaign(next_campaign))
+pub(crate) fn ui_post_game_system(mut state: ResMut<State<GameState>>, ctx: ResMut<EguiContext>) {
+    if let GameState::PostGame(details) = state.current().clone() {
+        // Handle post game screen
+        let t = match details.result {
+            shared::GameResult::Lose => "Lost",
+            shared::GameResult::Win => "Won",
+        };
+
+        egui::containers::Area::new("post_game")
+            .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .show(ctx.ctx(), |ui| {
+                ui.vertical(|ui| {
+                    ui.heading(t);
+                });
+                match details.result {
+                    shared::GameResult::Lose => {
+                        if ui.button("Retry").clicked() {
+                            state.replace(GameState::Game(details.game_type)).ok();
+                        }
+                    }
+                    shared::GameResult::Win => match &details.game_type {
+                        GameType::Campaign(c) => {
+                            if let Some((_, next_index)) = c.next_level() {
+                                if ui.button("Continue").clicked() {
+                                    let mut new_campaign = c.clone();
+                                    new_campaign.level_index = next_index;
+                                    state
+                                        .replace(GameState::Game(GameType::Campaign(new_campaign)))
+                                        .ok();
+                                }
+                            } else {
+                                ui.heading("You won this campaign!");
+                                if ui.button("Return to Menu").clicked() {
+                                    state.replace(GameState::Menu).ok();
+                                }
+                            }
+                        }
+                        GameType::Other(_) => {
+                            if ui.button("Return to Menu").clicked() {
+                                state.replace(GameState::Menu).ok();
+                            }
+                        }
+                    },
                 }
-            };
-
-            state.replace(next).ok();
-        }
-        _ => unreachable!("System ran outside of `GameState::End`"),
-    };
-
-    egui::Window::new("End game")
-        .collapsible(false)
-        .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-        .show(ctx.ctx(), |ui| {
-            if ui.button("Continue").clicked() {
-                next_state();
-            }
-        });
+            });
+    }
 }

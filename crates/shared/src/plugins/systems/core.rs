@@ -1,9 +1,6 @@
 //! Systems needed to represent the bare-minimum of the game. Systems here
 //! set up the game board, score pieces, and control the [`PlacementTimer`] among other things.
-
-use std::time::Duration;
-
-use crate::{prelude::*, CampaignDetails, GameDetails, GameType, NextTransition};
+use crate::prelude::*;
 use bevy::{app::Events, prelude::*, render::camera::Camera, utils::Instant};
 
 use super::Label;
@@ -30,7 +27,7 @@ impl Plugin for CorePuzzlePlugin {
                 SystemSet::on_update(GameState::game())
                     .with_system(scorer_system)
                     .with_system(placement_timer_tick_system)
-                    .with_system(level_win_system)
+                    .with_system(game_win_loss_system)
                     .label(Label::Process)
                     .after(Label::Listen),
             )
@@ -200,50 +197,70 @@ fn scorer_system(
 }
 
 /// Determines whether the specific level being played is win
-fn level_win_system(
+fn game_win_loss_system(
     mut state: ResMut<State<GameState>>,
     started: Option<Res<GameStarted>>,
     score: Res<Score>,
+    active: Query<(&PlacementTimer, &Pattern), With<ActiveEntity>>,
+    hover: Query<(), With<tile_styles::Invalid>>,
 ) {
     if let Some(started) = started {
-        if let GameState::Game(game_type) = state.current() {
+        if let GameState::Game(game_type) = state.current().clone() {
             let GameDetails { objective, .. } = game_type.get_details();
 
-            let won = match objective {
-                Objective::FreePlay => false, // Infinite free play
-                Objective::Survive(duration) => {
-                    // check to see if the player has surpassed the necessary duration
-                    Instant::now().duration_since(*started) >= duration
-                }
-                Objective::TimeLimit {
-                    required_score,
-                    duration,
-                } => {
-                    Instant::now().duration_since(*started) >= duration && **score >= required_score
+            // Check for a win or loss behavior here. It can be neither!
+
+            let result: Option<GameResult> = {
+                // Early return a loss if the timer is up and we are in an invalid state
+                if active
+                    .get_single()
+                    .map(|(timer, _)| timer.get().finished())
+                    .unwrap_or(false)
+                    && hover.iter().count() != active.single().1.blocks.len()
+                {
+                    Some(GameResult::Lose)
+                } else {
+                    // otherwise, check for wins (or losses) from the objective
+                    match objective {
+                        Objective::FreePlay => None, // Infinite free play
+                        Objective::Survive(duration) => {
+                            // check to see if the player has surpassed the necessary duration
+                            if Instant::now().duration_since(*started) >= duration {
+                                Some(GameResult::Win)
+                            } else {
+                                None
+                            }
+                        }
+                        Objective::TimeLimit {
+                            required_score,
+                            duration,
+                        } => {
+                            if Instant::now().duration_since(*started) >= duration
+                                && **score >= required_score
+                            {
+                                Some(GameResult::Win)
+                            }
+                            // Or the time limit has run out without our score reaching the required threshold
+                            else if Instant::now().duration_since(*started) >= duration
+                                && **score < required_score
+                            {
+                                Some(GameResult::Lose)
+                            } else {
+                                None
+                            }
+                        }
+                    }
                 }
             };
 
-            if won {
-                // Destructure the state (which we know is main, as this system only runs during the main game loop)
-                let transition = match game_type.get_campaign() {
-                    Some(c) => {
-                        // check to see if the last level has been completed
-                        match c.next_level() {
-                            Some((_, next_level_index)) => {
-                                NextTransition::NewLevel(GameType::Campaign(CampaignDetails {
-                                    campaign: c.campaign,
-                                    level_index: next_level_index,
-                                    campaign_scores: vec![], // TODO!
-                                }))
-                            }
-                            // TODO: This is basically a whole objective win scenario. Should probably do something better than just transition to menu later
-                            None => NextTransition::Menu,
-                        }
-                    }
-                    // no campaign, go back to the menus
-                    None => NextTransition::Menu,
-                };
-                state.replace(GameState::PostGame(transition)).ok();
+            if let Some(result) = result {
+                state
+                    .replace(GameState::PostGame(PostGameDetails {
+                        game_type,
+                        score: **score,
+                        result,
+                    }))
+                    .ok();
             }
         }
     }
@@ -342,9 +359,7 @@ fn placement_timer_tick_system(
             t.get_mut().tick(time.delta());
             if t.get().just_finished() {
                 // Commit the piece
-                events.send(GameEvent::CommitActive {
-                    loss_on_failure: true,
-                });
+                events.send(GameEvent::CommitActive);
             }
         })
         .ok();
@@ -422,7 +437,7 @@ fn process_events_system(
                     }
                 }
             }
-            GameEvent::CommitActive { loss_on_failure } => {
+            GameEvent::CommitActive => {
                 // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
                 let (actives, color) = active
                     .get_single_mut()
@@ -452,14 +467,6 @@ fn process_events_system(
                         next.set(bag.next().unwrap());
                     }
                 }
-                // If the event is set to lose on failure to place, send a loss event
-                else if loss_on_failure {
-                    send_events.push(GameEvent::Loss);
-                }
-            }
-            GameEvent::Loss => {
-                // state.replace(GameState::menu()).ok();
-                todo!("change to post-state instead of directly taking back to menu, may want to restart if campaign.");
             }
         }
     }
