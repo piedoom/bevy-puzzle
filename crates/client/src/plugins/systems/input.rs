@@ -1,6 +1,6 @@
 //! Systems and other data structures related to obtaining user input and modifying the game in some way
-use crate::PlaySfxEvent;
 use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
+use bevy_kira_audio::Audio;
 use shared::prelude::*;
 
 pub struct InputPlugin;
@@ -64,7 +64,7 @@ fn get_cursor_position_system(
 
 fn rotate_active_system(
     mut active: Query<&mut Transform, With<ActiveEntity>>,
-    mut sfx: EventWriter<PlaySfxEvent>,
+    audio: Res<Audio>,
     state: Res<State<GameState>>,
     theme: Option<Res<Theme>>,
     keyboard: Res<Input<KeyCode>>,
@@ -93,7 +93,7 @@ fn rotate_active_system(
                     .ok();
 
                 if let Some(theme) = theme {
-                    sfx.send(PlaySfxEvent::new(theme.sfx.grip.clone()));
+                    audio.play(theme.sfx.grip.clone());
                 }
             }
         }
@@ -103,7 +103,7 @@ fn rotate_active_system(
 fn add_to_hold_system(
     mut hold: ResMut<Hold>,
     mut events: EventWriter<GameEvent>,
-    mut sfx: EventWriter<PlaySfxEvent>,
+    audio: Res<Audio>,
     unswappable: Query<&Unswappable>,
     active_pattern: Query<&Pattern, With<ActiveEntity>>,
     keyboard: Res<Input<KeyCode>>,
@@ -116,7 +116,7 @@ fn add_to_hold_system(
         let pattern = hold.swap(active_pattern.get_single().unwrap().clone());
         let pattern = pattern.unwrap_or_else(|| patterns.get(next_up.get()).unwrap().clone());
         if let Some(theme) = theme {
-            sfx.send(PlaySfxEvent::new(theme.sfx.swap.clone()));
+            audio.play(theme.sfx.swap.clone());
         }
         events.send(GameEvent::SetActivePattern {
             pattern,
@@ -128,14 +128,14 @@ fn add_to_hold_system(
 /// Commit a piece on click. Failure should not end in a loss.
 fn click_commit_system(
     mut events: EventWriter<GameEvent>,
-    mut sfx: EventWriter<PlaySfxEvent>,
+    audio: Res<Audio>,
     theme: Option<Res<Theme>>,
     input: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
     if input.just_pressed(MouseButton::Left) || keyboard.just_pressed(KeyCode::Space) {
         if let Some(theme) = theme {
-            sfx.send(PlaySfxEvent::new(theme.sfx.place.clone()));
+            audio.play(theme.sfx.place.clone());
         }
         events.send(GameEvent::CommitActive);
     }

@@ -7,10 +7,6 @@ pub struct PuzzleClientPlugins;
 
 impl PluginGroup for PuzzleClientPlugins {
     fn build(&mut self, group: &mut bevy::app::PluginGroupBuilder) {
-        group
-            .add(AudioPlugin)
-            .add(InputPlugin)
-            .add(StylePlugin)
-            .add(ui::UiPlugin);
+        group.add(InputPlugin).add(StylePlugin).add(ui::UiPlugin);
     }
 }

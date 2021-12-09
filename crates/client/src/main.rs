@@ -2,10 +2,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
-mod events;
 mod plugins;
-
-pub use events::PlaySfxEvent;
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
