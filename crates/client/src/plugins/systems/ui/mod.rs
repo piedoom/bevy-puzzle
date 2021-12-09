@@ -42,6 +42,9 @@ impl Plugin for UiPlugin {
                 SystemSet::on_update(GameState::post_game()).with_system(ui_post_game_system),
             )
             .add_system_set(
+                SystemSet::on_enter(GameState::post_game()).with_system(ui_post_game_save_system),
+            )
+            .add_system_set(
                 SystemSet::on_update(GameState::pre_game()).with_system(ui_pre_game_menu_system),
             )
             .add_plugin(EditUiPlugin);

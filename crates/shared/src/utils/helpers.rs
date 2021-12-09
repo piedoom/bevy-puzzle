@@ -16,7 +16,7 @@ where
     cmd.entity(entity).remove::<F>().insert(T::default());
 }
 
-/// Create a new save file with the created-at (current) timestamp as the filename
+/// Create (or replace) a save file with the created-at timestamp as the filename
 ///
 /// * `save` - the [`Save`] to write to file
 pub fn save_to_file(save: Save) -> Save {

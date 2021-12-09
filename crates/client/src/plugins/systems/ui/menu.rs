@@ -11,19 +11,19 @@ pub type Paused = bool;
 #[derive(Default)]
 pub struct MenuState {
     pub map: Option<Handle<Map>>,
-    pub theme: Option<Theme>,
-    pub campaign: Option<Campaign>,
     pub save: Option<Save>,
     pub page: MenuPage,
 }
 
 /// Determines which page of the initial menu we are on
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone)]
 pub enum MenuPage {
     #[default]
     Initial,
-    NewCampaign,
-    LoadCampaign,
+    NewCampaign {
+        campaign: Option<Campaign>,
+    },
+    LoadSavedCampaign,
     NewCustom,
     NewMap,
 }
@@ -48,17 +48,19 @@ pub(crate) fn ui_menu_system(
                 button_padding: EVec2::new(12.0, 6.0),
                 ..Default::default()
             };
-            let current_page = menu_state.page;
-            match current_page {
+            let mut next_menu_page: Option<MenuPage> = None;
+            match &mut menu_state.page {
                 MenuPage::Initial => {
                     // Main buttons
                     ui.horizontal(|ui| {
                         if ui.button("New Campaign").clicked() {
-                            menu_state.page = MenuPage::NewCampaign;
+                            menu_state.page = MenuPage::NewCampaign {
+                                campaign: Default::default(),
+                            };
                         }
 
                         if ui.button("Load Campaign").clicked() {
-                            menu_state.page = MenuPage::LoadCampaign;
+                            menu_state.page = MenuPage::LoadSavedCampaign;
                         }
 
                         if ui.button("Custom Game").clicked() {
@@ -70,22 +72,18 @@ pub(crate) fn ui_menu_system(
                         }
                     });
                 }
-                MenuPage::NewCampaign => {
+                MenuPage::NewCampaign { campaign } => {
                     // Show all campaigns
-                    combo_box(
-                        &mut menu_state.campaign,
-                        ui,
-                        "Campaign select",
-                        campaigns.clone(),
-                        |c| c.name,
-                    );
+                    combo_box(campaign, ui, "Campaign select", campaigns.clone(), |c| {
+                        c.name
+                    });
                     ui.horizontal(|ui| {
                         if ui.button("Back").clicked() {
-                            menu_state.page = MenuPage::Initial;
+                            next_menu_page = Some(MenuPage::Initial);
                         };
                         // Start selected campaign
                         if ui.button("Start").clicked() {
-                            if let Some(campaign) = &menu_state.campaign {
+                            if let Some(campaign) = &campaign {
                                 if !campaign.levels.is_empty() {
                                     // Set the save file as a current resource
                                     let save = Save::new(campaign, 0);
@@ -105,7 +103,7 @@ pub(crate) fn ui_menu_system(
                         }
                     });
                 }
-                MenuPage::LoadCampaign => {
+                MenuPage::LoadSavedCampaign => {
                     // Main buttons
                     ui.vertical(|ui| {
                         combo_box(
@@ -139,14 +137,18 @@ pub(crate) fn ui_menu_system(
                                                 },
                                             )))
                                             .ok();
+                                        cmd.insert_resource(save.clone());
                                     }
                                 });
                             }
                         }
                     });
                 }
-                MenuPage::NewCustom => todo!(),
+                MenuPage::NewCustom => {}
                 MenuPage::NewMap => todo!(),
+            }
+            if let Some(next_page) = next_menu_page {
+                menu_state.page = next_page;
             }
         });
 }
@@ -243,6 +245,32 @@ pub(crate) fn ui_pre_game_menu_system(
                 });
         }
         _ => unreachable!("Added system to wrong set state"),
+    }
+}
+
+/// Saves the game after winning
+pub(crate) fn ui_post_game_save_system(
+    mut cmd: Commands,
+    save: Option<ResMut<Save>>,
+    state: Res<State<GameState>>,
+) {
+    if let GameState::PostGame(details) = state.current() {
+        if let Some(campaign) = details.game_type.get_campaign() {
+            // Only save the game if we won
+            if details.result == GameResult::Win {
+                if let Some((_, next_index)) = campaign.next_level() {
+                    let new_save = match save {
+                        Some(save) => Save {
+                            updated_at: chrono::offset::Local::now(),
+                            level: next_index,
+                            ..save.clone()
+                        },
+                        None => Save::new(campaign.campaign.name, campaign.level_index),
+                    };
+                    cmd.insert_resource(shared::prelude::save_to_file(new_save));
+                }
+            }
+        }
     }
 }
 

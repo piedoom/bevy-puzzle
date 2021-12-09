@@ -13,8 +13,8 @@
                 ),
             ),
             objective: TimeLimit (
-                required_score: 50,
-                duration: Duration(secs: 60, nanos: 0),
+                required_score: 10,
+                duration: Duration(secs: 10, nanos: 0),
             ),
             // objective: Survive(Duration(secs: 60, nanos: 0)),
         ),

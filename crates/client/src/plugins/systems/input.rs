@@ -135,6 +135,10 @@ fn click_commit_system(
 ) {
     if input.just_pressed(MouseButton::Left) || keyboard.just_pressed(KeyCode::Space) {
         if let Some(theme) = theme {
+            // let random = rand::thread_rng().gen::<f32>();
+            // let scale = 0.2;
+            // let rate = 1.0 + (random * scale);
+            // audio.set_playback_rate(rate);
             audio.play(theme.sfx.place.clone());
         }
         events.send(GameEvent::CommitActive);
