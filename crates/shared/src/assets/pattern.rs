@@ -74,7 +74,7 @@ impl AssetLoader for PatternLoader {
     }
 
     fn extensions(&self) -> &[&str] {
-        &["block"]
+        &["pattern"]
     }
 }
 

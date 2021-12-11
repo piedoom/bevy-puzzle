@@ -63,14 +63,22 @@ pub(crate) fn ui_main_system(
                                 paint.add(Shape::circle_filled(
                                     Pos2::new(pos.x + radius, pos.y + radius),
                                     radius,
-                                    colors::BACKGROUND_LIGHT,
+                                    Color32::from_rgb(
+                                        colors::BACKGROUND_LIGHT[0],
+                                        colors::BACKGROUND_LIGHT[1],
+                                        colors::BACKGROUND_LIGHT[2],
+                                    ),
                                 ));
 
                                 // Placement timer shape
                                 paint.add(Shape::circle_filled(
                                     Pos2::new(pos.x + radius, pos.y + radius),
                                     radius * timer.get().percent(),
-                                    colors::GREEN,
+                                    Color32::from_rgb(
+                                        colors::GREEN[0],
+                                        colors::GREEN[1],
+                                        colors::GREEN[2],
+                                    ),
                                 ));
                             });
                     }
@@ -202,7 +210,7 @@ pub(crate) fn ui_main_system(
                                         )
                                         .shrink(shrink),
                                         0.,
-                                        color,
+                                        Color32::from_rgb(color[0], color[1], color[2]),
                                     ));
                                 }
                             }

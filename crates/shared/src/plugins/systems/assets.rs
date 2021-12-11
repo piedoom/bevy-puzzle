@@ -88,7 +88,7 @@ fn init_load_system(
 
     // load all block patterns
     let patterns = &mut assets
-        .load_folder("blocks")
+        .load_folder("patterns")
         .expect("Could not load patterns");
     loading.0.append(patterns);
 
