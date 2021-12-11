@@ -201,56 +201,52 @@ fn game_win_loss_system(
     mut state: ResMut<State<GameState>>,
     started: Option<Res<GameStarted>>,
     score: Res<Score>,
-    active: Query<(&PlacementTimer, &Pattern), With<ActiveEntity>>,
-    hover: Query<(), With<tile_styles::Invalid>>,
+    // active: Query<(&PlacementTimer, &Pattern), With<ActiveEntity>>,
+    // hover: Query<(), With<tile_styles::Invalid>>,
 ) {
     if let Some(started) = started {
         if let GameState::Game(game_type) = state.current().clone() {
             let GameDetails { objective, .. } = game_type.get_details();
 
             // Check for a win or loss behavior here. It can be neither!
-
             let result: Option<GameResult> = {
-                // Early return a loss if the timer is up and we are in an invalid state
-                if active
-                    .get_single()
-                    .map(|(timer, _)| timer.get().finished())
-                    .unwrap_or(false)
-                    && hover.iter().count() != active.single().1.blocks.len()
-                {
-                    Some(GameResult::Lose)
-                } else {
-                    // otherwise, check for wins (or losses) from the objective
-                    match objective {
-                        Objective::FreePlay => None, // Infinite free play
-                        Objective::Survive(duration) => {
-                            // check to see if the player has surpassed the necessary duration
-                            if Instant::now().duration_since(*started) >= duration {
-                                Some(GameResult::Win)
-                            } else {
-                                None
-                            }
-                        }
-                        Objective::TimeLimit {
-                            required_score,
-                            duration,
-                        } => {
-                            if Instant::now().duration_since(*started) >= duration
-                                && **score >= required_score
-                            {
-                                Some(GameResult::Win)
-                            }
-                            // Or the time limit has run out without our score reaching the required threshold
-                            else if Instant::now().duration_since(*started) >= duration
-                                && **score < required_score
-                            {
-                                Some(GameResult::Lose)
-                            } else {
-                                None
-                            }
+                // We don't check for a timer-involved loss here - we do that else where. it might be
+                // worth trying that here, though
+                // // Early return a loss if the timer is up and we are in an invalid state
+                // if active
+                //     .get_single()
+                //     .map(|(timer, _)| timer.get().finished())
+                //     .unwrap_or(false)
+                //     && hover.iter().count() != active.single().1.blocks.len()
+                // {
+                //     Some(GameResult::Lose)
+                // } else {
+                // otherwise, check for wins (or losses) from the objective
+                match objective {
+                    Objective::FreePlay => None, // Infinite free play
+                    Objective::Survive(duration) => {
+                        // check to see if the player has surpassed the necessary duration
+                        match Instant::now().duration_since(*started) >= duration {
+                            true => Some(GameResult::Win),
+                            false => None,
                         }
                     }
+                    Objective::TimeLimit {
+                        required_score,
+                        duration,
+                    } => match Instant::now().duration_since(*started) >= duration {
+                        true => match **score >= required_score {
+                            true => Some(GameResult::Win),
+                            false => Some(GameResult::Lose),
+                        },
+                        false => None,
+                    },
+                    Objective::Score(required_score) => match **score >= required_score {
+                        true => Some(GameResult::Win),
+                        false => None,
+                    },
                 }
+                // }
             };
 
             if let Some(result) = result {
@@ -359,7 +355,7 @@ fn placement_timer_tick_system(
             t.get_mut().tick(time.delta());
             if t.get().just_finished() {
                 // Commit the piece
-                events.send(GameEvent::CommitActive);
+                events.send(GameEvent::TimerCommitActive);
             }
         })
         .ok();
@@ -372,7 +368,8 @@ fn process_events_system(
     mut next: ResMut<NextUp>,
     mut step: ResMut<Step>,
     mut active: Query<(Entity, &mut Transform, &Pattern), With<ActiveEntity>>,
-    state: ResMut<State<GameState>>,
+    mut state: ResMut<State<GameState>>,
+    score: Res<Score>,
     position_mode: Res<ActivePositionMode>,
     hover: Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
     pattern_assets: Res<Assets<Pattern>>,
@@ -437,7 +434,7 @@ fn process_events_system(
                     }
                 }
             }
-            GameEvent::CommitActive => {
+            GameEvent::CommitActive | GameEvent::TimerCommitActive => {
                 // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
                 let (actives, color) = active
                     .get_single_mut()
@@ -465,6 +462,18 @@ fn process_events_system(
 
                         // Advance the pieces
                         next.set(bag.next().unwrap());
+                    }
+                }
+                // Failure! If this was a timer action, we trigger a game loss here.
+                else if let GameEvent::TimerCommitActive = event {
+                    if let GameState::Game(game_type) = state.current().clone() {
+                        state
+                            .replace(GameState::PostGame(PostGameDetails {
+                                game_type: game_type.clone(),
+                                score: **score,
+                                result: GameResult::Lose,
+                            }))
+                            .ok();
                     }
                 }
             }

@@ -159,6 +159,12 @@ pub(crate) fn ui_main_system(
                                     ui.label(format!("Score: {}/{}", **score, required_score));
                                 });
                             }
+                            Objective::Score(required_score) => {
+                                ui.vertical(|ui| {
+                                    ui.heading("Score Limit");
+                                    ui.label(format!("Score: {}/{}", **score, required_score));
+                                });
+                            }
                         }
                     });
                 });

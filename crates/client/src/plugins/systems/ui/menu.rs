@@ -223,6 +223,9 @@ pub(crate) fn ui_pre_game_menu_system(
                                 required_score,
                                 duration.as_secs()
                             ),
+                            Objective::Score(required_score) => {
+                                format!("Reach a total score of {}.", required_score)
+                            },
                         });
 
                         // If part of a campaign, show the info here
@@ -317,12 +320,15 @@ pub(crate) fn ui_post_game_system(mut state: ResMut<State<GameState>>, ctx: ResM
                     }
                     shared::GameResult::Win => match &details.game_type {
                         GameType::Campaign(c) => {
+                            ui.label(format!("Score: {}", details.score));
                             if let Some((_, next_index)) = c.next_level() {
                                 if ui.button("Continue").clicked() {
                                     let mut new_campaign = c.clone();
                                     new_campaign.level_index = next_index;
                                     state
-                                        .replace(GameState::Game(GameType::Campaign(new_campaign)))
+                                        .replace(GameState::PreGame(GameType::Campaign(
+                                            new_campaign,
+                                        )))
                                         .ok();
                                 }
                             } else {

@@ -38,6 +38,8 @@ pub enum Objective {
         required_score: usize,
         duration: Duration,
     },
+    /// Play until a score is reached
+    Score(usize),
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Default, Clone)]

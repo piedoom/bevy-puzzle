@@ -4,7 +4,7 @@
         (
             map: "default",
             options: (
-                patterns: Some(["quad", "bracket right", "bracket left", "snake left", "snake right", "pyramid"]),
+                patterns: Some(["quad", "bracket right", "bracket left", "pyramid"]),
                 timer_rate: Progressive(
                     start_rate: Duration(secs: 5, nanos: 0),
                     end_rate: Duration(secs: 2, nanos: 0),
@@ -12,15 +12,27 @@
                     delay: 0,
                 ),
             ),
-            objective: TimeLimit (
-                required_score: 10,
-                duration: Duration(secs: 10, nanos: 0),
+            objective: Score(100),
+        ),
+        (
+            map: "default",
+            options: (
+                patterns: Some(["quad", "bracket right", "bracket left", "pyramid", "snake left", "snake right"]),
+                timer_rate: Progressive(
+                    start_rate: Duration(secs: 4, nanos: 0),
+                    end_rate: Duration(secs: 2, nanos: 0),
+                    steps: 10,
+                    delay: 0,
+                ),
             ),
-            // objective: Survive(Duration(secs: 60, nanos: 0)),
+            objective: TimeLimit (
+                required_score: 100,
+                duration: Duration(secs: 60, nanos: 0),
+            ),
         ),
         (
             map: "skew",
-            objective: Survive(Duration(secs: 60, nanos: 0)),
+            objective: Survive(Duration(secs: 40, nanos: 0)),
         )
     ]
 )

@@ -11,6 +11,9 @@ pub enum GameEvent {
     // SetGameMode(Handle<GameMode>),
     /// Attempt to commit the actively hovered tiles. Resets the active pattern if successful
     CommitActive,
+    /// Same as [`GameEvent::CommitActive`], but for when the [`PlacementTimer`] runs out. This means
+    /// that the game will result in a loss if the commit fails.
+    TimerCommitActive,
 }
 
 pub enum EditEvent {
