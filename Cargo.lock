@@ -253,7 +253,7 @@ source = "git+https://github.com/inodentry/bevy_asset_ron#06f4de5813ba8cc8de616a
 dependencies = [
  "anyhow",
  "bevy",
- "ron 0.6.6",
+ "ron",
  "serde",
 ]
 
@@ -543,7 +543,7 @@ dependencies = [
  "bevy_reflect",
  "bevy_transform",
  "bevy_utils 0.5.0 (git+https://github.com/bevyengine/bevy?branch=main)",
- "ron 0.6.6",
+ "ron",
  "serde",
  "thiserror",
  "uuid",
@@ -887,23 +887,6 @@ dependencies = [
  "glob",
  "libc",
  "libloading",
-]
-
-[[package]]
-name = "client"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bevy",
- "bevy_asset_ron",
- "bevy_egui",
- "bevy_kira_audio",
- "chrono",
- "rand",
- "ron 0.7.0",
- "serde",
- "shared",
- "tracing",
 ]
 
 [[package]]
@@ -2319,6 +2302,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9926767b8b8244d7b6b64546585121d193c3d0b4856ccd656b7bfa9deb91ab6a"
 
 [[package]]
+name = "puzzle"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "bevy_asset_ron",
+ "bevy_egui",
+ "bevy_kira_audio",
+ "chrono",
+ "rand",
+ "ron",
+ "serde",
+ "tracing",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2460,17 +2459,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ron"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b861ecaade43ac97886a512b360d01d66be9f41f3c61088b42cedf92e03d678"
-dependencies = [
- "base64",
- "bitflags",
- "serde",
-]
-
-[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2538,21 +2526,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "900fba806f70c630b0a382d0d825e17a0f19fcd059a2ade1ff237bcddf446b31"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "shared"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bevy",
- "bevy_asset_ron",
- "bevy_kira_audio",
- "chrono",
- "rand",
- "ron 0.7.0",
- "serde",
- "tracing",
 ]
 
 [[package]]

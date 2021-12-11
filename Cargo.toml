@@ -1,10 +1,36 @@
-[workspace]
-resolver = "2"
+[package]
+name = "puzzle"
+version = "0.1.0"
+authors = ["doomy <2640792-_doomy@users.noreply.gitlab.com>"]
+edition = "2021"
 
-members = [
-    "crates/shared",
-    "crates/client",
-]
+[lib]
+name = "pz"
+
+[dependencies]
+serde = "*"
+ron = "*"
+anyhow = "*"
+bevy_asset_ron = { git = "https://github.com/inodentry/bevy_asset_ron" }
+rand = {version = "*"}
+tracing = "0.1.29"
+
+[dependencies.bevy]
+version = "0.5"
+default_features = false
+features = ["serialize", "render", "png", "x11", "bevy_wgpu", "bevy_winit"] 
+
+[dependencies.chrono]
+version = "0.4"
+features = ["serde"]
+
+[dependencies.bevy_kira_audio]
+branch = "bevy_main"
+git = "https://github.com/piedoom/bevy_kira_audio"
+
+[dependencies.bevy_egui]
+branch = "bevy-main"
+git = "https://github.com/jakobhellermann/bevy_egui"
 
 [patch.crates-io]
 bevy = { git = 'https://github.com/bevyengine/bevy', branch = "main" }
