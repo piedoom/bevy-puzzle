@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_egui::egui::Color32;
 
 pub trait TransformExt {
     /// Converts the game transform into whole-number coordinates corresponding to the
@@ -69,5 +70,15 @@ impl F32Ext for f32 {
     #[inline(always)]
     fn lerp(&self, other: f32, scalar: f32) -> f32 {
         self + (other - self) * scalar
+    }
+}
+
+pub trait Color32Ext {
+    fn rgb_from_array(color: [u8; 3]) -> Color32;
+}
+
+impl Color32Ext for Color32 {
+    fn rgb_from_array(color: [u8; 3]) -> Color32 {
+        Self::from_rgb(color[0], color[1], color[2])
     }
 }

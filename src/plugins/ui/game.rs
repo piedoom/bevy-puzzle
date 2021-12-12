@@ -20,7 +20,6 @@ pub(crate) fn ui_main_system(
     patterns: Res<Assets<Pattern>>,
     state: Res<State<GameState>>,
     started: Res<GameStarted>,
-    //  bounds: Res<Bounds<bevy::math::Vec2>>,
     ui_settings: Res<EguiSettings>,
 ) {
     // get current mode
@@ -82,44 +81,47 @@ pub(crate) fn ui_main_system(
                 })
                 .ok();
 
-            // let height = windows
-            //     .get_primary()
-            //     .map(|w| w.height())
-            //     .unwrap_or_default();
+            let details = game_type.get_details();
 
-            // // Score and other ui stuff
-            // // Get the extents with on-screen pixel values so we can add UI stuff aligned to the gameboard.
-            // // let extents = {
-            // //     let min_world = bounds.world.left_bottom();
-            // //     let max_world = bounds.world.right_top();
+            egui::containers::Area::new("time")
+                .anchor(Align2::CENTER_TOP, egui::Vec2::ZERO)
+                .show(ctx.ctx(), |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add(TimeWidget {
+                            current_time: Instant::now().duration_since(*started).as_secs(),
+                            time_limit: match details.objective {
+                                Objective::FreePlay | Objective::Score(_) => None,
+                                Objective::Survive(duration)
+                                | Objective::TimeLimit { duration, .. } => Some(duration.as_secs()),
+                            },
+                        });
 
-            //     // // get the min and max in pixels. We use "raw" because in egui the y axis has to be flipped, which we do later on.
-            //     let trans = camera_transform.translation;
-            //     // offset from camera in game units that the target position is at
-            //     let pos_to_pixels = |pos: Pos2| -> Vec3 {
-            //         let scalar = 1f32 / projection.scale;
-            //         let unit_offset = trans - Vec3::new(pos.x, pos.y, 0f32);
-            //         let mut r = unit_offset * scalar;
-            //         // invert for egui
-            //         r.y = height - r.y;
-            //         r
-            //     };
+                        if let Objective::TimeLimit { duration, .. }
+                        | Objective::Survive(duration) = details.objective
+                        {
+                            let range = match details.objective {
+                                Objective::Survive(_) => 0f32..=duration.as_secs_f32(),
+                                Objective::TimeLimit { .. } => duration.as_secs_f32()..=0f32,
+                                _ => unreachable!(),
+                            };
+                            ui.add(BarWidget::<f32> {
+                                color_background: Color32::rgb_from_array(colors::BACKGROUND),
+                                color_foreground: Color32::rgb_from_array(colors::GREEN),
+                                color_outline: Color32::rgb_from_array(colors::BACKGROUND_LIGHT),
+                                direction: egui::Direction::LeftToRight,
+                                range,
+                                current: Instant::now().duration_since(*started).as_secs_f32(),
+                                size: egui::Vec2::new(120., 20.),
+                            });
+                        }
+                    });
+                });
 
-            //     let min_raw = pos_to_pixels(Pos2::new(min_world.x, min_world.y));
-            //     let max_raw = pos_to_pixels(Pos2::new(max_world.x, max_world.y));
-
-            //     let min = Pos2::new(min_raw.x, height - min_raw.y);
-            //     let max = Pos2::new(max_raw.x, height - max_raw.y);
-
-            //     egui::Rect { min, max }
-            // };
-
-            egui::containers::Area::new("score")
+            egui::containers::Area::new("info")
                 .anchor(Align2::LEFT_TOP, egui::Vec2::splat(32f32))
                 .show(ctx.ctx(), |ui| {
                     ui.vertical(|ui| {
                         // Dispalay any objective related info
-                        let details = game_type.get_details();
                         match details.objective {
                             Objective::FreePlay => {
                                 ui.vertical(|ui| {

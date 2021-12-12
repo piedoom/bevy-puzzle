@@ -16,20 +16,26 @@ pub struct Unswappable;
 pub mod tile_states {
     use super::*;
     #[derive(Default, Component)]
+    #[component(storage = "SparseSet")]
     pub struct Empty;
     #[derive(Default, Component)]
+    #[component(storage = "SparseSet")]
     pub struct Full;
     /// Already scored tile that will be cleaned up
     #[derive(Default, Component)]
+    #[component(storage = "SparseSet")]
     pub struct Scored;
 }
 
 pub mod tile_styles {
     use super::*;
     #[derive(Default, Component)]
+    #[component(storage = "SparseSet")]
     pub struct None;
     #[derive(Default, Component)]
+    #[component(storage = "SparseSet")]
     pub struct Hover;
     #[derive(Default, Component)]
+    #[component(storage = "SparseSet")]
     pub struct Invalid;
 }

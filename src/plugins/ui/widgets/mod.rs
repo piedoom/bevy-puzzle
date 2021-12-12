@@ -1,3 +1,5 @@
+mod bar;
 mod pattern;
+mod time;
 
-pub use pattern::PatternWidget;
+pub use {bar::BarWidget, pattern::PatternWidget, time::TimeWidget};
