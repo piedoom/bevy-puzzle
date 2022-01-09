@@ -11,6 +11,7 @@
                     steps: 16,
                     delay: 0,
                 ),
+                theme: Some("3d"),
             ),
             objective: Score(100),
         ),
@@ -31,8 +32,24 @@
             ),
         ),
         (
+            map: "ibeam",
+            options: (
+                timer_rate: Progressive(
+                    start_rate: Duration(secs: 3, nanos: 0),
+                    end_rate: Duration(secs: 1, nanos: 0),
+                    steps: 20,
+                    delay: 0,
+                ),
+                scorer: Line(Both),
+            ),
+            objective: Survive(Duration(secs: 30, nanos: 0)),
+        ),
+        (
             map: "skew",
             objective: Survive(Duration(secs: 40, nanos: 0)),
-        )
+            options: (
+                patterns: Some(["bracket right", "bracket left", "snake left", "snake right"]),
+            ),
+        ),
     ]
 )

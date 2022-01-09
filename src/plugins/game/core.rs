@@ -269,6 +269,7 @@ fn setup_system(
     mut hold: ResMut<Hold>,
     mut next: ResMut<NextUp>,
     mut bounds: ResMut<Bounds<Vec2>>,
+    themes: Res<Themes>,
     maps: Res<Assets<Map>>,
     state: Res<State<GameState>>,
     settings: Res<Assets<UserPreferencesAsset>>,
@@ -280,6 +281,21 @@ fn setup_system(
     cmd.insert_resource(GameStarted::now());
     if let GameState::Game(game_type) = state.current() {
         let GameDetails { map, options, .. } = game_type.get_details();
+
+        // set the theme
+        // if a theme is specified, override whatever theme is current. otherwise, set it to a default
+        let theme = if let Some(theme_name) = options.theme {
+            themes
+                .iter()
+                .find(|x| x.name == theme_name)
+                .unwrap()
+                .clone()
+        } else {
+            themes.iter().find(|x| x.name == "default").unwrap().clone()
+        };
+        cmd.insert_resource(theme);
+
+        // get the map
         let map = maps.get(map).unwrap();
 
         // calculate screen position from already calculated world bounds

@@ -82,6 +82,7 @@ fn init_load_system(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut loading: ResMut<PreloadingAssets>,
     mut themes: ResMut<Themes>,
+    theme: Option<Res<Theme>>,
     assets: Res<AssetServer>,
     theme_assets: Res<Assets<ThemeDescription>>,
 ) {
@@ -138,16 +139,6 @@ fn init_load_system(
         .iter()
         .map(|(_, theme)| theme_from_description(theme))
         .collect();
-
-    // set the default theme resource
-    cmd.insert_resource(
-        themes
-            .iter()
-            .find(|x| x.name == "default")
-            .expect("no default asset. what did you do with it?")
-            // it's fine to clone cause this is just like a bunch of handles anyways i think
-            .clone(),
-    );
 
     // load maps
     let map_handles = &mut assets.load_folder("maps").expect("Could not load maps");

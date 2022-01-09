@@ -26,6 +26,9 @@ pub struct GameOptions {
     pub patterns: Option<Vec<String>>,
     #[serde(default)]
     pub scorer: Scorer,
+    /// Override the theme from the campaign
+    #[serde(default)]
+    pub theme: Option<String>,
 }
 
 impl Default for GameOptions {
@@ -38,6 +41,7 @@ impl Default for GameOptions {
             timer_rate: TimerRate::Constant(Duration::from_secs(3)),
             patterns: None,
             scorer: Default::default(),
+            theme: None,
         }
     }
 }

@@ -74,11 +74,11 @@ impl F32Ext for f32 {
 }
 
 pub trait Color32Ext {
-    fn rgb_from_array(color: [u8; 3]) -> Color32;
+    fn from_rgb_array(color: [u8; 3]) -> Color32;
 }
 
 impl Color32Ext for Color32 {
-    fn rgb_from_array(color: [u8; 3]) -> Color32 {
+    fn from_rgb_array(color: [u8; 3]) -> Color32 {
         Self::from_rgb(color[0], color[1], color[2])
     }
 }

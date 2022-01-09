@@ -1,0 +1,24 @@
+(
+    name: "3d",
+    sfx: (
+        place: "default/place",
+        select: "default/select",
+        swap: "default/swap",
+        grip: "default/grip",
+    ),
+    sprites: (
+        red: "3d/red",
+        orange: "3d/orange",
+        yellow: "3d/yellow",
+        green: "3d/green",
+        light_blue: "3d/light_blue",
+        lime: "3d/lime",
+        blue: "3d/blue",
+        indigo: "3d/indigo",
+        purple: "3d/purple",
+        scored: "3d/scored",
+        empty: "3d/empty",
+        hover: "3d/hover",
+        invalid: "3d/invalid",
+    ),
+)

@@ -95,6 +95,7 @@ impl Default for GameType {
 
 impl GameType {
     /// Retrieves details from enum data without needing to manually destructure
+    #[inline(always)]
     pub fn get_details(&self) -> GameDetails {
         match self {
             GameType::Campaign(c) => GameDetails {
