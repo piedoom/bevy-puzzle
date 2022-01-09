@@ -1,6 +1,12 @@
 use crate::prelude::*;
 use bevy::math::Vec2;
-use bevy_egui::{egui::Vec2 as EVec2, egui::*};
+use bevy_egui::{
+    self,
+    egui::{
+        epaint::{self, RectShape},
+        Color32, Rect, Response, Sense, Shape, Stroke, Ui, Vec2 as EVec2, Widget,
+    },
+};
 
 /// Draws an arbitrary number of tiles with color on a grid
 #[derive(Default)]
@@ -52,7 +58,7 @@ impl<'a> Widget for PatternWidget<'a> {
                         local_rect.min + EVec2::new(unit_size, unit_size),
                     );
                     // create an empty grid
-                    ui.painter().add(Shape::Rect {
+                    ui.painter().add(RectShape {
                         rect: square_rect,
                         corner_radius: 0f32,
                         fill: Color32::TRANSPARENT,
@@ -61,7 +67,7 @@ impl<'a> Widget for PatternWidget<'a> {
                     if let Some(pattern) = self.pattern {
                         // highlight if correct coords
                         if pattern.blocks.contains(&Vec2::new(x as f32, -(y as f32))) {
-                            ui.painter().add(Shape::Rect {
+                            ui.painter().add(RectShape {
                                 rect: square_rect,
                                 corner_radius: 0f32,
                                 fill: self.color,

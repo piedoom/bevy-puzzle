@@ -126,26 +126,26 @@ fn style_blocks_system(
         full.iter()
             .chain(uninvalidated.iter())
             .for_each(|(entity, color)| {
-                cmd.entity(entity).insert(theme.material_from_color(color));
+                cmd.entity(entity).insert(theme.sprite_from_color(color));
                 let mut t = transforms.get_mut(entity).unwrap();
                 t.translation.z = 7.0;
             });
 
         empty.iter().chain(unhovered.iter()).for_each(|entity| {
-            cmd.entity(entity).insert(theme.materials.empty.clone());
+            cmd.entity(entity).insert(theme.sprites.empty.clone());
             let mut t = transforms.get_mut(entity).unwrap();
             t.translation.z = 7.0;
         });
         scored.for_each(|entity| {
-            cmd.entity(entity).insert(theme.materials.scored.clone());
+            cmd.entity(entity).insert(theme.sprites.scored.clone());
         });
         invalid.for_each(|entity| {
-            cmd.entity(entity).insert(theme.materials.invalid.clone());
+            cmd.entity(entity).insert(theme.sprites.invalid.clone());
             let mut t = transforms.get_mut(entity).unwrap();
             t.translation.z = 8.0;
         });
         hovered.for_each(|entity| {
-            cmd.entity(entity).insert(theme.materials.hover.clone());
+            cmd.entity(entity).insert(theme.sprites.hover.clone());
             let mut t = transforms.get_mut(entity).unwrap();
             t.translation.z = 8.0;
         });
@@ -176,7 +176,10 @@ pub(crate) fn add_sprite_to_tiles_system(
     // add sprite bundle
     query.for_each(|(entity, transform)| {
         cmd.entity(entity).insert_bundle(SpriteBundle {
-            sprite: Sprite::new(Vec2::new(1f32, 1f32)),
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(1f32, 1f32)),
+                ..Default::default()
+            },
             transform: *transform,
             global_transform: (*transform).into(),
             ..Default::default()

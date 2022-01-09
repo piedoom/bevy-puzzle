@@ -21,7 +21,7 @@ pub struct ThemeDescription {
 pub struct Theme {
     pub name: String,
     pub sfx: ThemeSfx<Handle<AudioSource>>,
-    pub materials: ThemeSprites<Handle<ColorMaterial>>,
+    pub sprites: ThemeSprites<Handle<Image>>,
 }
 
 pub type Themes = Vec<Theme>;
@@ -72,17 +72,17 @@ impl AssetLoader for ThemeLoader {
     }
 }
 impl Theme {
-    pub fn material_from_color(&self, color: &super::PatternColor) -> Handle<ColorMaterial> {
+    pub fn sprite_from_color(&self, color: &super::PatternColor) -> Handle<Image> {
         match color {
-            super::PatternColor::Red => self.materials.red.clone(),
-            super::PatternColor::Orange => self.materials.orange.clone(),
-            super::PatternColor::Yellow => self.materials.yellow.clone(),
-            super::PatternColor::Lime => self.materials.lime.clone(),
-            super::PatternColor::Green => self.materials.green.clone(),
-            super::PatternColor::LightBlue => self.materials.light_blue.clone(),
-            super::PatternColor::Blue => self.materials.blue.clone(),
-            super::PatternColor::Indigo => self.materials.indigo.clone(),
-            super::PatternColor::Purple => self.materials.purple.clone(),
+            super::PatternColor::Red => self.sprites.red.clone(),
+            super::PatternColor::Orange => self.sprites.orange.clone(),
+            super::PatternColor::Yellow => self.sprites.yellow.clone(),
+            super::PatternColor::Lime => self.sprites.lime.clone(),
+            super::PatternColor::Green => self.sprites.green.clone(),
+            super::PatternColor::LightBlue => self.sprites.light_blue.clone(),
+            super::PatternColor::Blue => self.sprites.blue.clone(),
+            super::PatternColor::Indigo => self.sprites.indigo.clone(),
+            super::PatternColor::Purple => self.sprites.purple.clone(),
         }
     }
 }

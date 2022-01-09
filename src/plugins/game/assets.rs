@@ -1,6 +1,5 @@
 use crate::{assets::UserPreferencesAsset, prelude::*};
 use bevy::{asset::LoadState, prelude::*};
-use bevy_asset_ron::RonAssetPlugin;
 use bevy_kira_audio::AudioSource;
 
 pub struct AssetPlugin;
@@ -105,7 +104,7 @@ fn init_load_system(
         let mut load_sprite = |path: &String, loading: &mut PreloadingAssets| {
             let handle = assets.load(format!("sprites/{}.png", path).as_str());
             loading.0.push(handle.clone_untyped());
-            materials.add(handle.into())
+            handle
         };
 
         Theme {
@@ -115,7 +114,7 @@ fn init_load_system(
                 swap: load_audio(&desc.sfx.swap, &mut loading),
                 grip: load_audio(&desc.sfx.grip, &mut loading),
             },
-            materials: ThemeSprites {
+            sprites: ThemeSprites {
                 red: load_sprite(&desc.sprites.red, &mut loading),
                 orange: load_sprite(&desc.sprites.orange, &mut loading),
                 yellow: load_sprite(&desc.sprites.yellow, &mut loading),

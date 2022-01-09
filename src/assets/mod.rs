@@ -1,3 +1,4 @@
+mod bevy_asset_ron;
 mod campaign;
 mod map;
 mod options;
@@ -6,4 +7,7 @@ mod preferences;
 mod save;
 mod theme;
 
-pub use {campaign::*, map::*, options::*, pattern::*, preferences::*, save::*, theme::*};
+pub use {
+    bevy_asset_ron::*, campaign::*, map::*, options::*, pattern::*, preferences::*, save::*,
+    theme::*,
+};
