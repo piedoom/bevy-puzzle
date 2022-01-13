@@ -48,7 +48,7 @@ pub struct PreloadingAssets(pub Vec<HandleUntyped>);
 
 // Loads prefab-like assets that need to be loaded before our main stuff
 fn init_pre_load_system(mut loading: ResMut<PreloadingAssets>, assets: Res<AssetServer>) {
-    let theme_handles = &mut assets.load_folder("themes").expect("Could not load modes");
+    let theme_handles = &mut assets.load_folder("themes").expect("Could not load themes");
     loading.0.append(theme_handles);
 
     let campaign_handles = &mut assets
