@@ -19,6 +19,5 @@ pub mod prelude {
     pub use plugins::*;
     pub use resources::*;
     pub use state::*;
-    pub use std::time::Duration;
     pub use utils::*;
 }

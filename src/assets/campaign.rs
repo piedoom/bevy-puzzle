@@ -2,9 +2,11 @@
 
 use crate::prelude::*;
 use bevy::reflect::TypeUuid;
-use bevy::{prelude::*, utils::Instant};
+use bevy::{
+    prelude::*,
+    utils::{Duration, Instant},
+};
 use std::fmt::{Display, Formatter};
-use std::time::Duration;
 
 #[derive(
     serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Default, Debug, Clone, Eq, Hash,

@@ -1,5 +1,5 @@
 //! Describes different properties about gameplay that can be loaded, saved, and applied.
-use std::time::Duration;
+use bevy::utils::Duration;
 
 const fn r#true() -> bool {
     true

@@ -1,7 +1,12 @@
 //! Systems needed to represent the bare-minimum of the game. Systems here
 //! set up the game board, score pieces, and control the [`PlacementTimer`] among other things.
 use crate::prelude::*;
-use bevy::{app::Events, prelude::*, render::camera::Camera, utils::Instant};
+use bevy::{
+    app::Events,
+    prelude::*,
+    render::camera::Camera,
+    utils::{Duration, Instant},
+};
 
 pub struct CorePuzzlePlugin;
 

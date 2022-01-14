@@ -6,12 +6,8 @@ use bevy::prelude::*;
 #[allow(clippy::derive_hash_xor_eq)]
 #[derive(Debug, Clone, Eq, Hash, Default)]
 pub enum GameState {
-    /// Assets are loaded from files. This state progresses once all assets are
-    /// finished loading.
+    /// Asset loading
     #[default]
-    PreLoad,
-    /// Assets that require extra assembly due to the current asset loader
-    /// limitations (e.g. [`CampaignDescription`] into a [`Campaign`]) reside here.
     Load,
     /// The "start" or "main" menu of the game
     Menu,
@@ -125,11 +121,6 @@ impl PartialEq for GameState {
 }
 
 impl GameState {
-    #[inline(always)]
-    pub fn pre_load() -> Self {
-        Self::PreLoad
-    }
-
     #[inline(always)]
     pub fn load() -> Self {
         Self::Load

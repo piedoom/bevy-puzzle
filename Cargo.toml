@@ -20,7 +20,7 @@ default_features = true
 
 [dependencies.chrono]
 version = "0.4"
-features = ["serde"]
+features = ["serde", "wasmbind"]
 
 [dependencies.bevy_kira_audio]
 branch = "bevy_main"
@@ -32,3 +32,7 @@ git = "https://github.com/mvlabat/bevy_egui"
 
 [patch.crates-io]
 bevy = { git = 'https://github.com/bevyengine/bevy', branch = "main" }
+
+[build-dependencies]
+serde = "*"
+ron = "*"

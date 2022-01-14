@@ -1,8 +1,26 @@
+use std::path::PathBuf;
+
 use crate::{assets::UserPreferencesAsset, prelude::*};
 use bevy::{asset::LoadState, prelude::*};
 use bevy_kira_audio::AudioSource;
 
 pub struct AssetPlugin;
+
+/// Our loading will take multiple stages since some assets have dependencies to make developing easier
+/// We can specify the current stage here and keep it in state
+#[derive(Default)]
+pub struct Stage(usize);
+
+impl Stage {
+    #[inline(always)]
+    pub fn current(&self) -> usize {
+        self.0
+    }
+    #[inline(always)]
+    pub fn next(&mut self) {
+        self.0 += 1
+    }
+}
 
 impl Plugin for AssetPlugin {
     fn build(&self, app: &mut App) {
@@ -10,6 +28,8 @@ impl Plugin for AssetPlugin {
             .init_resource::<Handle<UserPreferencesAsset>>()
             .init_resource::<Themes>()
             .init_resource::<Campaigns>()
+            .init_resource::<Stage>()
+            .add_asset::<AssetManifest>()
             .add_asset::<ThemeDescription>()
             .add_asset::<Pattern>()
             .add_asset::<Map>()
@@ -20,25 +40,14 @@ impl Plugin for AssetPlugin {
             .add_plugin(RonAssetPlugin::<ThemeDescription>::new(&["theme"]))
             .add_plugin(RonAssetPlugin::<CampaignDescription>::new(&["campaign"]))
             .add_plugin(RonAssetPlugin::<Save>::new(&["save"]))
+            .add_plugin(RonAssetPlugin::<AssetManifest>::new(&["manifest"]))
             .init_asset_loader::<PatternLoader>()
-            .add_system_set(
-                // Load setup
-                SystemSet::on_enter(GameState::pre_load()).with_system(init_pre_load_system),
-            )
-            .add_system_set(
-                SystemSet::on_update(GameState::pre_load())
-                    .with_system(pre_load_assets_loaded_transition_system),
-            )
             .add_system_set(
                 // Load setup
                 SystemSet::on_enter(GameState::load()).with_system(init_load_system),
             )
             .add_system_set(
-                SystemSet::on_update(GameState::load())
-                    .with_system(assets_loaded_transition_system),
-            )
-            .add_system_set(
-                SystemSet::on_exit(GameState::load()).with_system(assemble_after_loaded_system),
+                SystemSet::on_update(GameState::load()).with_system(load_assets_system),
             );
     }
 }
@@ -47,53 +56,29 @@ impl Plugin for AssetPlugin {
 pub struct PreloadingAssets(pub Vec<HandleUntyped>);
 
 // Loads prefab-like assets that need to be loaded before our main stuff
-fn init_pre_load_system(mut loading: ResMut<PreloadingAssets>, assets: Res<AssetServer>) {
-    let theme_handles = &mut assets.load_folder("themes").expect("Could not load themes");
-    loading.0.append(theme_handles);
-
-    let campaign_handles = &mut assets
-        .load_folder("campaigns")
-        .expect("Could not load campaigns");
-    loading.0.append(campaign_handles);
+fn init_load_system(mut loading: ResMut<PreloadingAssets>, assets: Res<AssetServer>) {
+    loading.0.push(assets.load_untyped("assets.manifest"));
 }
 
-fn pre_load_assets_loaded_transition_system(
+fn load_assets_system(
     mut state: ResMut<State<GameState>>,
-    loading: Res<PreloadingAssets>,
+    mut loading: ResMut<PreloadingAssets>,
+    mut stage: ResMut<Stage>,
+    mut themes: ResMut<Themes>,
+    mut campaigns: ResMut<Campaigns>,
+    mut settings_handle: ResMut<Handle<UserPreferencesAsset>>,
+    campaign_descriptions: Res<Assets<CampaignDescription>>,
+    theme_assets: Res<Assets<ThemeDescription>>,
     assets: Res<AssetServer>,
+    manifests: Res<Assets<AssetManifest>>,
+    maps: Res<Assets<Map>>,
 ) {
-    if loading
+    let done_loading = loading
         .0
         .iter()
         .filter(|h| assets.get_load_state(*h) == LoadState::Loading)
         .count()
-        == 0
-    {
-        // Transition states to the menu
-        state.set(GameState::Load).ok();
-    }
-}
-
-fn init_load_system(
-    mut cmd: Commands,
-    mut state: ResMut<State<GameState>>,
-    mut settings_handle: ResMut<Handle<UserPreferencesAsset>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut loading: ResMut<PreloadingAssets>,
-    mut themes: ResMut<Themes>,
-    theme: Option<Res<Theme>>,
-    assets: Res<AssetServer>,
-    theme_assets: Res<Assets<ThemeDescription>>,
-) {
-    // load our settings file
-    *settings_handle = assets.load("settings.rfg");
-    loading.0.push(settings_handle.clone_untyped());
-
-    // load all block patterns
-    let patterns = &mut assets
-        .load_folder("patterns")
-        .expect("Could not load patterns");
-    loading.0.append(patterns);
+        == 0;
 
     let mut theme_from_description = |desc: &ThemeDescription| -> Theme {
         let load_audio = |path: &String, loading: &mut PreloadingAssets| {
@@ -133,53 +118,6 @@ fn init_load_system(
         }
     };
 
-    // load the real "Themes" instead of the descriptions. The description is just a bunch of paths. We want to load all the handles and stuff.
-    *themes = theme_assets
-        .iter()
-        .map(|(_, theme)| theme_from_description(theme))
-        .collect();
-
-    // load maps
-    let map_handles = &mut assets.load_folder("maps").expect("Could not load maps");
-    loading.0.append(map_handles);
-
-    // Load all saves
-    let save_handles = &mut assets.load_folder("saves").expect("Could not load saves");
-    loading.0.append(save_handles);
-
-    // Watch for changes
-    assets
-        .watch_for_changes()
-        .expect("could not watch for changes");
-
-    // add all loading to state
-    state.set(GameState::Load).ok();
-}
-
-/// Track any loading assets and transition to the next game state when ready
-fn assets_loaded_transition_system(
-    mut state: ResMut<State<GameState>>,
-    loading: Res<PreloadingAssets>,
-    assets: Res<AssetServer>,
-) {
-    if loading
-        .0
-        .iter()
-        .filter(|h| assets.get_load_state(*h) == LoadState::Loading)
-        .count()
-        == 0
-    {
-        // Transition states to the menu
-        state.set(GameState::Menu).ok();
-    }
-}
-
-/// Assemble assets that need everything to be loaded first. Call this on exit.
-fn assemble_after_loaded_system(
-    mut campaigns: ResMut<Campaigns>,
-    maps: Res<Assets<Map>>,
-    campaign_descriptions: Res<Assets<CampaignDescription>>,
-) {
     let campaign_from_description = |desc: &CampaignDescription| -> Campaign {
         Campaign {
             name: desc.name.clone(),
@@ -201,8 +139,83 @@ fn assemble_after_loaded_system(
         }
     };
 
-    *campaigns = campaign_descriptions
-        .iter()
-        .map(|desc| campaign_from_description(desc.1))
-        .collect();
+    if done_loading {
+        match stage.current() {
+            0 => {
+                stage.next();
+            }
+            1 => {
+                // Able to load prefabs
+                let mut theme_handles = load_folder(&assets, "themes", &manifests);
+                loading.0.append(&mut theme_handles);
+
+                let mut campaign_handles = load_folder(&assets, "campaigns", &manifests);
+                loading.0.append(&mut campaign_handles);
+
+                stage.next();
+            }
+            2 => {
+                // load our settings file
+                *settings_handle = assets.load("settings.rfg");
+                loading.0.push(settings_handle.clone_untyped());
+
+                // load everything else
+                let mut handles: Vec<HandleUntyped> = load_folder(&assets, "patterns", &manifests)
+                    .iter()
+                    .chain(load_folder(&assets, "maps", &manifests).iter())
+                    .chain(load_folder(&assets, "saves", &manifests).iter())
+                    .cloned()
+                    .collect();
+                loading.0.append(&mut handles);
+
+                stage.next();
+            }
+            3 => {
+                // able to build prefabs
+                // load the real "Themes" instead of the descriptions. The description is just a bunch of paths. We want to load all the handles and stuff.
+                *themes = theme_assets
+                    .iter()
+                    .map(|(_, theme)| theme_from_description(theme))
+                    .collect();
+
+                *campaigns = campaign_descriptions
+                    .iter()
+                    .map(|desc| campaign_from_description(desc.1))
+                    .collect();
+
+                stage.next();
+            }
+            _ => {
+                // Watch for changes
+                assets
+                    .watch_for_changes()
+                    .expect("could not watch for changes");
+                // Transition states to the menu
+                state.set(GameState::Menu).ok();
+            }
+        }
+    }
+}
+
+/// Works with web
+fn load_folder(
+    assets: &AssetServer,
+    folder: &str,
+    manifests: &Assets<AssetManifest>,
+) -> Vec<HandleUntyped> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        assets.load_folder(folder).expect("Could not load")
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let manifest = &manifests.iter().next().unwrap().1 .0;
+        manifest
+            .get(folder)
+            .unwrap()
+            .iter()
+            .map(|path| assets.load_untyped(PathBuf::from(format!("{}/{}", folder, path))))
+            .collect()
+    }
 }
