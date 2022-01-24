@@ -238,7 +238,7 @@ fn load_folder(assets: &AssetServer, folder: &str) -> Vec<HandleUntyped> {
 fn load_folder(
     assets: &AssetServer,
     folder: &str,
-    manifests: Res<Assets<AssetManifest>>,
+    manifests: &Res<Assets<AssetManifest>>,
 ) -> Vec<HandleUntyped> {
     let manifest = &manifests.iter().next().unwrap().1 .0;
     manifest
