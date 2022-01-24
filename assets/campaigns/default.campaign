@@ -11,7 +11,6 @@
                     steps: 16,
                     delay: 0,
                 ),
-                theme: Some("3d"),
             ),
             objective: Score(100),
         ),
