@@ -1,0 +1,24 @@
+(
+    name: "default",
+    sfx: (
+        place: "default/place",
+        select: "default/select",
+        swap: "default/swap",
+        grip: "default/grip",
+    ),
+    sprites: (
+        red: "default/red",
+        orange: "default/orange",
+        yellow: "default/yellow",
+        green: "default/green",
+        light_blue: "default/light_blue",
+        lime: "default/lime",
+        blue: "default/blue",
+        indigo: "default/indigo",
+        purple: "default/purple",
+        scored: "default/scored",
+        empty: "default/empty",
+        hover: "default/hover",
+        invalid: "default/invalid",
+    ),
+)
