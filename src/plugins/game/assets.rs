@@ -44,7 +44,7 @@ impl Plugin for AssetPlugin {
             .init_asset_loader::<PatternLoader>()
             .add_system_set(
                 // Load setup
-                SystemSet::on_enter(GameState::load()).with_system(init_load_system),
+                SystemSet::on_enter(GameState::load()).with_system(load_manifest_system),
             )
             .add_system_set(
                 SystemSet::on_update(GameState::load()).with_system(load_assets_system),
@@ -56,7 +56,7 @@ impl Plugin for AssetPlugin {
 pub struct PreloadingAssets(pub Vec<HandleUntyped>);
 
 // Loads prefab-like assets that need to be loaded before our main stuff
-fn init_load_system(mut loading: ResMut<PreloadingAssets>, assets: Res<AssetServer>) {
+fn load_manifest_system(mut loading: ResMut<PreloadingAssets>, assets: Res<AssetServer>) {
     loading.0.push(assets.load_untyped("assets.manifest"));
 }
 
@@ -70,7 +70,7 @@ fn load_assets_system(
     campaign_descriptions: Res<Assets<CampaignDescription>>,
     theme_assets: Res<Assets<ThemeDescription>>,
     assets: Res<AssetServer>,
-    manifests: Res<Assets<AssetManifest>>,
+    #[cfg(target_arch = "wasm32")] manifests: Res<Assets<AssetManifest>>,
     maps: Res<Assets<Map>>,
 ) {
     let done_loading = loading
@@ -142,14 +142,25 @@ fn load_assets_system(
     if done_loading {
         match stage.current() {
             0 => {
+                // Give a second to actually put stuff in the resource (?)
                 stage.next();
             }
             1 => {
                 // Able to load prefabs
-                let mut theme_handles = load_folder(&assets, "themes", &manifests);
+                let mut theme_handles = load_folder(
+                    &assets,
+                    "themes",
+                    #[cfg(target_arch = "wasm32")]
+                    &manifests,
+                );
                 loading.0.append(&mut theme_handles);
 
-                let mut campaign_handles = load_folder(&assets, "campaigns", &manifests);
+                let mut campaign_handles = load_folder(
+                    &assets,
+                    "campaigns",
+                    #[cfg(target_arch = "wasm32")]
+                    &manifests,
+                );
                 loading.0.append(&mut campaign_handles);
 
                 stage.next();
@@ -160,12 +171,33 @@ fn load_assets_system(
                 loading.0.push(settings_handle.clone_untyped());
 
                 // load everything else
-                let mut handles: Vec<HandleUntyped> = load_folder(&assets, "patterns", &manifests)
-                    .iter()
-                    .chain(load_folder(&assets, "maps", &manifests).iter())
-                    .chain(load_folder(&assets, "saves", &manifests).iter())
-                    .cloned()
-                    .collect();
+                let mut handles: Vec<HandleUntyped> = load_folder(
+                    &assets,
+                    "patterns",
+                    #[cfg(target_arch = "wasm32")]
+                    &manifests,
+                )
+                .iter()
+                .chain(
+                    load_folder(
+                        &assets,
+                        "maps",
+                        #[cfg(target_arch = "wasm32")]
+                        &manifests,
+                    )
+                    .iter(),
+                )
+                .chain(
+                    load_folder(
+                        &assets,
+                        "saves",
+                        #[cfg(target_arch = "wasm32")]
+                        &manifests,
+                    )
+                    .iter(),
+                )
+                .cloned()
+                .collect();
                 loading.0.append(&mut handles);
 
                 stage.next();
@@ -197,25 +229,22 @@ fn load_assets_system(
     }
 }
 
-/// Works with web
+#[cfg(not(target_arch = "wasm32"))]
+fn load_folder(assets: &AssetServer, folder: &str) -> Vec<HandleUntyped> {
+    assets.load_folder(folder).expect("Could not load")
+}
+
+#[cfg(target_arch = "wasm32")]
 fn load_folder(
     assets: &AssetServer,
     folder: &str,
-    manifests: &Assets<AssetManifest>,
+    manifests: Res<Assets<AssetManifest>>,
 ) -> Vec<HandleUntyped> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        assets.load_folder(folder).expect("Could not load")
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        let manifest = &manifests.iter().next().unwrap().1 .0;
-        manifest
-            .get(folder)
-            .unwrap()
-            .iter()
-            .map(|path| assets.load_untyped(PathBuf::from(format!("{}/{}", folder, path))))
-            .collect()
-    }
+    let manifest = &manifests.iter().next().unwrap().1 .0;
+    manifest
+        .get(folder)
+        .unwrap()
+        .iter()
+        .map(|path| assets.load_untyped(PathBuf::from(format!("{}/{}", folder, path))))
+        .collect()
 }
