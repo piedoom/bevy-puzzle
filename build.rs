@@ -14,10 +14,9 @@ fn main() {
     // Here we list all the folders that assets are loaded within. It's
     // important to note that this implementation does not account for nested
     // directories. If you are looking for that, maybe try the `walk` crate. In
-    // my case, I have a whole ton of directories (campaigns, fonts, maps, etc.)
+    // my case, I have a whole ton of directories (campaigns, maps, etc.)
     let mut assets: HashMap<String, Vec<String>> = [
         ("campaigns".into(), vec![]),
-        ("fonts".into(), vec![]),
         ("maps".into(), vec![]),
         ("patterns".into(), vec![]),
         ("saves".into(), vec![]),
