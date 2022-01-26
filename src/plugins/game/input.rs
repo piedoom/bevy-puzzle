@@ -68,11 +68,13 @@ fn rotate_active_system(
     state: Res<State<GameState>>,
     theme: Option<Res<Theme>>,
     keyboard: Res<Input<KeyCode>>,
+    mouse: Res<Input<MouseButton>>,
 ) {
     if let GameState::Game(game_type) = state.current() {
         let GameDetails { options, .. } = game_type.get_details();
         if options.can_rotate {
-            let right_pressed = keyboard.just_pressed(KeyCode::D);
+            let right_pressed =
+                keyboard.just_pressed(KeyCode::D) || mouse.just_pressed(MouseButton::Right);
             let left_pressed = keyboard.just_pressed(KeyCode::A);
             if right_pressed || left_pressed {
                 let multiplier = if right_pressed {
@@ -110,9 +112,12 @@ fn add_to_hold_system(
     patterns: Res<Assets<Pattern>>,
     next_up: Res<NextUp>,
     theme: Option<Res<Theme>>,
+    mouse: Res<Input<MouseButton>>,
 ) {
     // TODO: probably should check if unswappable is in the active entity instead of just existing
-    if keyboard.just_pressed(KeyCode::LShift) && unswappable.iter().len() == 0 {
+    if (keyboard.just_pressed(KeyCode::LShift) || mouse.just_pressed(MouseButton::Middle))
+        && unswappable.iter().len() == 0
+    {
         let pattern = hold.swap(active_pattern.get_single().unwrap().clone());
         let pattern = pattern.unwrap_or_else(|| patterns.get(next_up.get()).unwrap().clone());
         if let Some(theme) = theme {

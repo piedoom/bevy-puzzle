@@ -20,13 +20,19 @@ where
 ///
 /// * `save` - the [`Save`] to write to file
 pub fn save_to_file(save: Save) -> Save {
-    if let Ok(text) = ron::to_string(&save) {
-        let path = AssetPath::from(PathBuf::from(format!(
-            "assets/saves/{}.save",
-            save.created_at.timestamp()
-        )));
-        let mut file = File::create(path.path()).unwrap();
-        file.write_all(text.as_bytes()).ok();
+    // TODO: save with wasm
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Ok(text) = ron::to_string(&save) {
+            let path = AssetPath::from(PathBuf::from(format!(
+                "assets/saves/{}.save",
+                save.created_at.timestamp()
+            )));
+
+            let mut file = File::create(path.path()).unwrap();
+            file.write_all(text.as_bytes()).ok();
+        }
     }
+
     save
 }

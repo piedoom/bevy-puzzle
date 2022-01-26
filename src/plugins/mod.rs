@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 mod game;
+mod shaders;
 mod ui;
 
 pub use {game::*, ui::*};
@@ -21,7 +22,8 @@ impl PluginGroup for PuzzleGamePlugins {
             .add(game::CorePuzzlePlugin)
             .add(game::EditPlugin)
             .add(game::InputPlugin)
-            .add(game::StylePlugin);
+            .add(game::StylePlugin)
+            .add(shaders::ShadersPlugin);
     }
 }
 
