@@ -1,35 +1,31 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bevy Puzzle</title>
     <style>
         body {
-            color: gray;
-            flex-direction: column-reverse;
-            background: rgb(0, 5, 13);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
             margin: 0;
         }
 
         canvas {
-            margin: 0 auto;
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
         }
     </style>
 </head>
 
-<script type="module">
-    import init from './puzzle.js'
-    init()
-</script>
 
-</html>
 
 <body>
-    <sub>
-        If nothing is happening, click within the game bounds.<br>
-        Made by @doomy in #bevy-engine and #rustlang #cool
-    </sub>
+    <script type="module">
+        import init from './puzzle.js'
+        init()
+    </script>
 </body>
+
+</html>
