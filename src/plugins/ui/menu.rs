@@ -17,6 +17,7 @@ pub struct MenuState {
 pub enum MenuPage {
     #[default]
     Initial,
+    Help,
     NewCampaign {
         campaign: Option<Campaign>,
     },
@@ -56,16 +57,21 @@ pub(crate) fn ui_menu_system(
                             };
                         }
 
+                        if ui.button("Help").clicked() {
+                            menu_state.page = MenuPage::Help;
+                        }
+
+
                         if ui.button("Load Campaign").clicked() {
-                            menu_state.page = MenuPage::LoadSavedCampaign;
+                           // menu_state.page = MenuPage::LoadSavedCampaign;
                         }
 
                         if ui.button("Custom Game").clicked() {
-                            menu_state.page = MenuPage::NewCustom;
+                           // menu_state.page = MenuPage::NewCustom;
                         }
 
                         if ui.button("Map Editor").clicked() {
-                            menu_state.page = MenuPage::NewMap;
+                           // menu_state.page = MenuPage::NewMap;
                         }
                     });
                 }
@@ -141,8 +147,34 @@ pub(crate) fn ui_menu_system(
                         }
                     });
                 }
-                MenuPage::NewCustom => {}
-                MenuPage::NewMap => todo!(),
+                MenuPage::Help => {
+                    ui.vertical(|ui| {
+                        if ui.button("Back").clicked() {
+                            menu_state.page = MenuPage::Initial;
+                        }
+                        ui.heading("Help");
+                        ui.add_space(32f32);
+                        ui.small("OBJECTIVE");
+                        ui.label("Increase your score by clearing tiles");
+                        ui.add_space(32f32);
+                        ui.small("CONTROLS");
+                        ui.label("Mouse movement / Arrow keys === Move tile");
+                        ui.label("Left mouse button / Space === Place tile");
+                        ui.label("A / D === Rotate piece counter clockwise and clockwise");
+                        ui.label("Shift / Middle mouse === Swap piece with piece in the hold");
+                        ui.add_space(32f32);
+                        ui.small("GAMEMODES");
+                        ui.label("Freeplay: Play for as long as you can survive");
+                        ui.label("Survival: Stay alive for a set time.");
+                        ui.label("Total Score: Reach a set total score with no time limit.");
+                        ui.label("Time Trial: Reach a set number of points in limited time.");
+                        ui.add_space(32f32);
+                        ui.small("RULESETS");
+                        ui.label("3x3 (most common): Blocks will clear when at least a 3x3 area is filled.");
+                        ui.label("Line: Blocks will clear when a continuous line is formed horizontally, vertically, or both.");
+                    });
+                }
+                _ => todo!(),
             }
             if let Some(next_page) = next_menu_page {
                 menu_state.page = next_page;

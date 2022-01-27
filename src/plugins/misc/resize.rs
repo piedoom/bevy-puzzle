@@ -70,6 +70,11 @@ fn resized_event_system(mut windows: ResMut<Windows>, mut state: ResMut<Viewport
 
 impl Plugin for ViewportResizedPlugin {
     fn build(&self, app: &mut App) {
+        let window: web_sys::Window = web_sys::window().unwrap();
+        let document_element = window.document().unwrap().document_element().unwrap();
+        let width = document_element.client_width() as f32;
+        let height = document_element.client_height() as f32;
+
         let (sender, receiver) = mpsc::unbounded();
 
         let window = web_sys::window().expect("could not get window");
@@ -80,7 +85,13 @@ impl Plugin for ViewportResizedPlugin {
         })
         .forget();
 
-        app.insert_resource(ViewportState { receiver })
-            .add_system(resized_event_system);
+        app.insert_resource(WindowDescriptor {
+            width,
+            height,
+            resizable: true,
+            ..Default::default()
+        })
+        .insert_resource(ViewportState { receiver })
+        .add_system(resized_event_system);
     }
 }
