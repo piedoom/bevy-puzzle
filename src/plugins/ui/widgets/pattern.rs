@@ -2,10 +2,7 @@ use crate::prelude::*;
 use bevy::math::Vec2;
 use bevy_egui::{
     self,
-    egui::{
-        epaint::{self, RectShape},
-        Color32, Rect, Response, Sense, Shape, Stroke, Ui, Vec2 as EVec2, Widget,
-    },
+    egui::{epaint::RectShape, Color32, Rect, Response, Sense, Stroke, Ui, Vec2 as EVec2, Widget},
 };
 
 /// Draws an arbitrary number of tiles with color on a grid
@@ -29,6 +26,7 @@ impl<'a> PatternWidget<'a> {
         }
     }
 
+    #[must_use]
     pub fn size(mut self, size: f32) -> Self {
         self.size = Some(size);
         self

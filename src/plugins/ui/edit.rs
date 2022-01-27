@@ -25,7 +25,7 @@ impl Plugin for EditUiPlugin {
 #[derive(Default)]
 struct UiState {
     map_name: String,
-    options: Option<GameOptions>,
+    // options: Option<GameOptions>,
 }
 
 fn edit_menu_system(

@@ -1,6 +1,6 @@
 //! Systems and other data structures related to obtaining user input and modifying the game in some way
 use crate::prelude::*;
-use bevy::{input::mouse::MouseMotion, prelude::*, render::camera::*};
+use bevy::{input::mouse::MouseMotion, prelude::*};
 use bevy_kira_audio::Audio;
 
 pub struct InputPlugin;

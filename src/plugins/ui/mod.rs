@@ -3,10 +3,10 @@ use bevy::prelude::*;
 mod edit;
 mod game;
 mod menu;
-mod widgets;
+pub mod widgets;
 
 use crate::prelude::*;
-pub(crate) use {game::*, menu::*, widgets::*};
+use {game::*, menu::*, widgets::*};
 
 pub struct UiPlugin;
 

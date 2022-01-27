@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 
 mod game;
+mod misc;
 mod shaders;
-mod ui;
+pub mod ui;
 
-pub use {game::*, ui::*};
+pub use {game::*, misc::*, ui::*};
 
 pub struct PuzzleUiPlugins;
 
@@ -24,6 +25,9 @@ impl PluginGroup for PuzzleGamePlugins {
             .add(game::InputPlugin)
             .add(game::StylePlugin)
             .add(shaders::ShadersPlugin);
+
+        #[cfg(target_arch = "wasm32")]
+        app.add(misc::resize::ViewportResizedPlugin);
     }
 }
 

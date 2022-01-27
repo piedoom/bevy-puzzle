@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 use bevy_egui::{
-    egui::{self, style::Spacing, Align2, Ui, Vec2 as EVec2},
+    egui::{self, style::Spacing, Align, Align2, Ui, Vec2 as EVec2},
     *,
 };
 
@@ -49,7 +49,7 @@ pub(crate) fn ui_menu_system(
             match &mut menu_state.page {
                 MenuPage::Initial => {
                     // Main buttons
-                    ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::top_down_justified(Align::Center), |ui| {
                         if ui.button("New Campaign").clicked() {
                             menu_state.page = MenuPage::NewCampaign {
                                 campaign: Default::default(),
@@ -233,6 +233,13 @@ pub(crate) fn ui_pre_game_menu_system(
                                 c.level_index + 1,
                                 c.campaign.levels.len()
                             ));
+
+                            ui.add(ProgressWidget {
+                                current_index: c.level_index,
+                                completed: false,
+                                length: c.campaign.levels.len(),
+                                ..Default::default()
+                            });
                         }
                     });
                     if ui.button("Start").clicked() {
@@ -312,12 +319,18 @@ pub(crate) fn ui_post_game_system(mut state: ResMut<State<GameState>>, ctx: ResM
                 match details.result {
                     GameResult::Lose => {
                         if ui.button("Retry").clicked() {
-                            state.replace(GameState::Game(details.game_type)).ok();
+                            state.replace(GameState::PreGame(details.game_type)).ok();
                         }
                     }
                     GameResult::Win => match &details.game_type {
                         GameType::Campaign(c) => {
                             ui.label(format!("Score: {}", details.score));
+                            ui.add(ProgressWidget {
+                                current_index: c.level_index,
+                                completed: true,
+                                length: c.campaign.levels.len(),
+                                ..Default::default()
+                            });
                             if let Some((_, next_index)) = c.next_level() {
                                 if ui.button("Continue").clicked() {
                                     let mut new_campaign = c.clone();

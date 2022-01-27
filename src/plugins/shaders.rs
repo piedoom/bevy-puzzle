@@ -57,7 +57,7 @@ fn spawn_background_system(
     println!("{}", &camera.iter().count());
     if let Some(window) = windows.get_primary() {
         //    if let Ok(camera) = camera.get_single() {
-        let scale = 0.5; //camera.scale.x;
+        // let scale = 0.5; //camera.scale.x;
         let (x, y) = (window.width(), window.height()); //(window.width() * scale, window.height() * scale);
         let translation = Vec3::new(0f32, 0f32, -10f32); //camera.translation.truncate().extend(-10f32);
         commands.spawn_bundle(MaterialMesh2dBundle {

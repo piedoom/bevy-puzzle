@@ -1,16 +1,16 @@
 //! MIT License
 //! Copyright (c) 2021 Jasen Borisov
-//! 
+//!
 //! Permission is hereby granted, free of charge, to any person obtaining a copy
 //! of this software and associated documentation files (the "Software"), to deal
 //! in the Software without restriction, including without limitation the rights
 //! to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 //! copies of the Software, and to permit persons to whom the Software is
 //! furnished to do so, subject to the following conditions:
-//! 
+//!
 //! The above copyright notice and this permission notice shall be included in all
 //! copies or substantial portions of the Software.
-//! 
+//!
 //! THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 //! IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 //! FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -18,8 +18,8 @@
 //! LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 //! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //! SOFTWARE.
-//! 
-//! 
+//!
+//!
 //! Easily register custom data to be loaded as bevy assets from RON files
 //!
 //! Caveat: you need a different file name extension for each asset type.
@@ -27,10 +27,10 @@
 //! Create your custom asset types as follows:
 //!
 
-use bevy::prelude::*;
 use bevy::asset::{AssetLoader, LoadContext, LoadedAsset};
-use bevy::utils::BoxedFuture;
+use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
+use bevy::utils::BoxedFuture;
 use serde::Deserialize;
 use std::marker::PhantomData;
 
@@ -47,7 +47,11 @@ where
         &self.extensions
     }
 
-    fn load<'a>(&'a self, bytes: &'a [u8], load_context: &'a mut LoadContext) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
+    fn load<'a>(
+        &'a self,
+        bytes: &'a [u8],
+        load_context: &'a mut LoadContext,
+    ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
         Box::pin(async move {
             let loaded = ron::de::from_bytes::<T>(bytes)?;
             load_context.set_default_asset(LoadedAsset::new(loaded));
@@ -73,8 +77,7 @@ where
             extensions: self.extensions.clone(),
             _t: PhantomData,
         };
-        app.add_asset::<T>()
-            .add_asset_loader(loader);
+        app.add_asset::<T>().add_asset_loader(loader);
     }
 }
 
@@ -93,4 +96,3 @@ impl<T> RonAssetPlugin<T> {
         }
     }
 }
-

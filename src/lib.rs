@@ -16,6 +16,7 @@ pub mod prelude {
     pub use assets::*;
     pub use components::*;
     pub use events::*;
+    pub use plugins::ui::widgets::*;
     pub use plugins::*;
     pub use resources::*;
     pub use state::*;

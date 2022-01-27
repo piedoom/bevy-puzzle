@@ -2,7 +2,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
-use bevy::{asset::AssetServerSettings, prelude::*};
+use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_kira_audio::AudioPlugin;
 use pz::prelude::*;

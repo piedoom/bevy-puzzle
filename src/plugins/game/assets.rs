@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::{assets::UserPreferencesAsset, prelude::*};
 use bevy::{asset::LoadState, prelude::*};
 use bevy_kira_audio::AudioSource;
@@ -86,7 +84,7 @@ fn load_assets_system(
             loading.0.push(handle.clone_untyped());
             handle
         };
-        let mut load_sprite = |path: &String, loading: &mut PreloadingAssets| {
+        let load_sprite = |path: &String, loading: &mut PreloadingAssets| {
             let handle = assets.load(format!("sprites/{}.png", path).as_str());
             loading.0.push(handle.clone_untyped());
             handle

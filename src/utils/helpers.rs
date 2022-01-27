@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use bevy::{asset::AssetPath, ecs::component::Component, prelude::*};
+use bevy_egui::egui::Color32;
 use std::{fs::File, io::Write, path::PathBuf};
 
 /// Transition states in a fn as to avoid invalid states
@@ -35,4 +36,8 @@ pub fn save_to_file(save: Save) -> Save {
     }
 
     save
+}
+
+pub const fn from_rgb_array(color: [u8; 3]) -> Color32 {
+    Color32::from_rgb(color[0], color[1], color[2])
 }

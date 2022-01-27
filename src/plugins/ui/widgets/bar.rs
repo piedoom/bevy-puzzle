@@ -1,8 +1,5 @@
-use std::ops::{Range, RangeInclusive};
-
-use crate::prelude::*;
-use bevy::prelude::*;
-use bevy_egui::egui::{self, emath::Numeric, Stroke, Widget};
+use bevy_egui::egui::{self, Stroke, Widget};
+use std::ops::RangeInclusive;
 
 pub struct BarWidget<T>
 where

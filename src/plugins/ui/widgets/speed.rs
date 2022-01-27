@@ -11,7 +11,7 @@ pub struct SpeedWidget<'a> {
 impl<'a> Widget for SpeedWidget<'a> {
     fn ui(self, ui: &mut bevy_egui::egui::Ui) -> bevy_egui::egui::Response {
         ui.vertical(|ui| {
-            let (res, paint) = ui.allocate_painter(self.size, Sense::click());
+            let (_, paint) = ui.allocate_painter(self.size, Sense::click());
             match self.timer_rate {
                 TimerRate::Constant(_) => (),
                 TimerRate::Progressive { steps, .. } => {
@@ -46,7 +46,7 @@ impl<'a> Widget for SpeedWidget<'a> {
                             )
                             .shrink(shrink),
                             0.,
-                            egui::Color32::from_rgb_array(color),
+                            from_rgb_array(color),
                         ));
                     }
                 }

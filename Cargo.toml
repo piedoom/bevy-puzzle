@@ -14,6 +14,7 @@ anyhow = "*"
 rand = {version = "*"}
 tracing = "0.1.29"
 
+
 [dependencies.bevy]
 version = "0.6"
 default_features = true
@@ -29,6 +30,12 @@ git = "https://github.com/piedoom/bevy_kira_audio"
 [dependencies.bevy_egui]
 branch = "main"
 git = "https://github.com/mvlabat/bevy_egui"
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+gloo-events = "0.1"
+futures = "0.3"
+wasm-bindgen = "0.2"
+web-sys = "0.3"
 
 [patch.crates-io]
 bevy = { git = 'https://github.com/bevyengine/bevy', branch = "main" }

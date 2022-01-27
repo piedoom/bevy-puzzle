@@ -2,7 +2,7 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use bevy::render::camera::{Camera, OrthographicProjection};
 use bevy::utils::Instant;
-use bevy_egui::egui::{self, Rect, *};
+use bevy_egui::egui::{self, *};
 use bevy_egui::{EguiContext, EguiSettings};
 
 use super::PatternWidget;
@@ -105,9 +105,9 @@ pub(crate) fn ui_main_system(
                                 _ => unreachable!(),
                             };
                             ui.add(BarWidget::<f32> {
-                                color_background: Color32::from_rgb_array(colors::BACKGROUND),
-                                color_foreground: Color32::from_rgb_array(colors::GREEN),
-                                color_outline: Color32::from_rgb_array(colors::BACKGROUND_LIGHT),
+                                color_background: colors::BACKGROUND_COLOR,
+                                color_foreground: colors::GREEN_COLOR,
+                                color_outline: colors::BACKGROUND_LIGHT_COLOR,
                                 direction: egui::Direction::LeftToRight,
                                 range,
                                 current: Instant::now().duration_since(*started).as_secs_f32(),
