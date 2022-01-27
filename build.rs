@@ -42,6 +42,7 @@ fn main() {
         for asset in assets.iter_mut() {
             files.push(asset.path().file_name().unwrap().to_str().unwrap().into());
         }
+        files.sort();
     });
 
     // Mutate the hashmap in place with contents from the asset directory
