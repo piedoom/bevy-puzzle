@@ -28,7 +28,10 @@ fn main() {
     .collect();
 
     // Mutate the hashmap in place with contents from the asset directory
-    assets.iter_mut().for_each(|(folder, files)| {
+    let mut list = assets.iter().collect::<Vec<(&String, &Vec<String>)>>();
+    list.sort();
+
+    list.iter_nut().for_each(|(folder, files)| {
         // get every asset directory and map the contents
         assets_dir
             .join(folder)
