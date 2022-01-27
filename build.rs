@@ -1,7 +1,8 @@
 use serde::{self, Serialize};
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::env;
-use std::fs::File;
+use std::fs::{DirEntry, File};
 use std::io::Write;
 use std::path::Path;
 
@@ -15,7 +16,7 @@ fn main() {
     // important to note that this implementation does not account for nested
     // directories. If you are looking for that, maybe try the `walk` crate. In
     // my case, I have a whole ton of directories (campaigns, maps, etc.)
-    let mut assets: HashMap<String, Vec<String>> = [
+    let assets: HashMap<String, Vec<String>> = [
         ("campaigns".into(), vec![]),
         ("maps".into(), vec![]),
         ("patterns".into(), vec![]),
@@ -28,20 +29,26 @@ fn main() {
     .collect();
 
     // Mutate the hashmap in place with contents from the asset directory
-    let mut list = assets.iter().collect::<Vec<(&String, &Vec<String>)>>();
+    let mut list = assets
+        .iter()
+        .map(|x| (x.0.clone(), x.1.clone()))
+        .collect::<Vec<(String, Vec<String>)>>();
     list.sort();
 
-    list.iter_nut().for_each(|(folder, files)| {
+    list.iter_mut().for_each(|(folder, files)| {
         // get every asset directory and map the contents
-        assets_dir
+        let mut assets: Vec<DirEntry> = assets_dir
             .join(folder)
             .read_dir()
             .unwrap()
-            .for_each(|asset| {
+            .map(|asset| {
                 // map to iterator and then map to success to get the inner item
-                let asset = asset.unwrap();
-                files.push(asset.path().file_name().unwrap().to_str().unwrap().into());
-            });
+                asset.unwrap()
+            })
+            .collect();
+        for asset in assets.iter_mut() {
+            files.push(asset.path().file_name().unwrap().to_str().unwrap().into());
+        }
     });
 
     // Put the assets within a struct just so it saves in RON a bit nicer within
