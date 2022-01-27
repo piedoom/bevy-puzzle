@@ -1,7 +1,6 @@
 use crate::{assets::UserPreferencesAsset, prelude::*};
 use bevy::{asset::LoadState, prelude::*};
 use bevy_kira_audio::AudioSource;
-
 pub struct AssetPlugin;
 
 /// Our loading will take multiple stages since some assets have dependencies to make developing easier
@@ -238,6 +237,7 @@ fn load_folder(
     folder: &str,
     manifests: &Res<Assets<AssetManifest>>,
 ) -> Vec<HandleUntyped> {
+    use std::path::PathBuf;
     let manifest = &manifests.iter().next().unwrap().1 .0;
     manifest
         .get(folder)
