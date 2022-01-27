@@ -16,7 +16,7 @@ fn main() {
     // important to note that this implementation does not account for nested
     // directories. If you are looking for that, maybe try the `walk` crate. In
     // my case, I have a whole ton of directories (campaigns, maps, etc.)
-    let assets: HashMap<String, Vec<String>> = [
+    let mut assets: HashMap<String, Vec<String>> = [
         ("campaigns".into(), vec![]),
         ("maps".into(), vec![]),
         ("patterns".into(), vec![]),
@@ -28,14 +28,7 @@ fn main() {
     .cloned()
     .collect();
 
-    // Mutate the hashmap in place with contents from the asset directory
-    let mut list = assets
-        .iter()
-        .map(|x| (x.0.clone(), x.1.clone()))
-        .collect::<Vec<(String, Vec<String>)>>();
-    list.sort();
-
-    list.iter_mut().for_each(|(folder, files)| {
+    assets.iter_mut().for_each(|(folder, files)| {
         // get every asset directory and map the contents
         let mut assets: Vec<DirEntry> = assets_dir
             .join(folder)
@@ -50,6 +43,13 @@ fn main() {
             files.push(asset.path().file_name().unwrap().to_str().unwrap().into());
         }
     });
+
+    // Mutate the hashmap in place with contents from the asset directory
+    let mut list = assets
+        .iter()
+        .map(|x| (x.0.clone(), x.1.clone()))
+        .collect::<Vec<(String, Vec<String>)>>();
+    list.sort();
 
     // Put the assets within a struct just so it saves in RON a bit nicer within
     // a struct. You can also probably just do some funky `format!()` stuff here
