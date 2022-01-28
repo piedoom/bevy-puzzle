@@ -54,7 +54,7 @@ fn animate_active_system(
                             placement_timer
                                 .get_single()
                                 // get the `percent()` of this timer as the scalar
-                                .map(|t| t.get().percent())
+                                .map(|t| t.percent())
                                 .unwrap_or(0f32),
                         )
                     })

@@ -13,7 +13,7 @@ ron = "*"
 anyhow = "*"
 rand = {version = "*"}
 tracing = "0.1.29"
-
+lyon_geom = "0.17"
 
 [dependencies.bevy]
 version = "0.6"

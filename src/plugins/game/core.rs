@@ -371,8 +371,8 @@ fn placement_timer_tick_system(
     active_timer
         .get_single_mut()
         .map(|mut t| {
-            t.get_mut().tick(time.delta());
-            if t.get().just_finished() {
+            t.tick(time.delta());
+            if t.just_finished() {
                 // Commit the piece
                 events.send(GameEvent::TimerCommitActive);
             }

@@ -1,3 +1,4 @@
+use crate::prelude::colors::GREEN_COLOR;
 use crate::prelude::*;
 use bevy::prelude::*;
 use bevy::render::camera::{Camera, OrthographicProjection};
@@ -38,45 +39,56 @@ pub(crate) fn ui_main_system(
                     ) {
                         let window_height =
                             windows.get_primary().map(|x| x.height()).unwrap_or(0f32);
-                        let margin = 64f32 * ui_settings.scale_factor as f32;
-                        let pos = egui::Vec2::new(pos.x - margin, window_height - pos.y - margin)
+                        let offset = 32f32 * ui_settings.scale_factor as f32;
+                        let pos = egui::Vec2::new(pos.x - offset, window_height - pos.y - offset)
                             / ui_settings.scale_factor as f32;
-                        let radius = 10f32;
 
                         // Show the placement timer and overall speed next to the current cursor
                         // TODO: make this work for arrow keys / console
+
                         egui::containers::Area::new("timer")
                             .interactable(false)
                             .current_pos(Pos2::new(pos.x, pos.y))
                             .show(ctx.ctx(), |ui| {
-                                const STROKE_WIDTH: f32 = 1.;
-                                let (_, paint) = ui.allocate_painter(
-                                    egui::Vec2::splat((radius + STROKE_WIDTH) * 2f32),
-                                    Sense::click(),
-                                );
-
-                                // Background shape
-                                paint.add(Shape::circle_filled(
-                                    Pos2::new(pos.x + radius, pos.y + radius),
-                                    radius,
-                                    Color32::from_rgb(
-                                        colors::BACKGROUND_LIGHT[0],
-                                        colors::BACKGROUND_LIGHT[1],
-                                        colors::BACKGROUND_LIGHT[2],
-                                    ),
-                                ));
-
-                                // Placement timer shape
-                                paint.add(Shape::circle_filled(
-                                    Pos2::new(pos.x + radius, pos.y + radius),
-                                    radius * timer.get().percent(),
-                                    Color32::from_rgb(
-                                        colors::GREEN[0],
-                                        colors::GREEN[1],
-                                        colors::GREEN[2],
-                                    ),
-                                ));
+                                ui.add(PlacementTimerWidget {
+                                    percent: timer.percent(),
+                                    size: egui::Vec2::splat(16f32),
+                                    stroke: Stroke::new(3f32, GREEN_COLOR),
+                                });
                             });
+
+                        // egui::containers::Area::new("timer")
+                        //     .interactable(false)
+                        //     .current_pos(Pos2::new(pos.x, pos.y))
+                        //     .show(ctx.ctx(), |ui| {
+                        //         const STROKE_WIDTH: f32 = 1.;
+                        //         let (_, paint) = ui.allocate_painter(
+                        //             egui::Vec2::splat((radius + STROKE_WIDTH) * 2f32),
+                        //             Sense::click(),
+                        //         );
+
+                        //         // Background shape
+                        //         paint.add(Shape::circle_filled(
+                        //             Pos2::new(pos.x + radius, pos.y + radius),
+                        //             radius,
+                        //             Color32::from_rgb(
+                        //                 colors::BACKGROUND_LIGHT[0],
+                        //                 colors::BACKGROUND_LIGHT[1],
+                        //                 colors::BACKGROUND_LIGHT[2],
+                        //             ),
+                        //         ));
+
+                        //         // Placement timer shape
+                        //         paint.add(Shape::circle_filled(
+                        //             Pos2::new(pos.x + radius, pos.y + radius),
+                        //             radius * timer.get().percent(),
+                        //             Color32::from_rgb(
+                        //                 colors::GREEN[0],
+                        //                 colors::GREEN[1],
+                        //                 colors::GREEN[2],
+                        //             ),
+                        //         ));
+                        //     });
                     }
                 })
                 .ok();
