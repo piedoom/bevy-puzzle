@@ -268,7 +268,7 @@ pub(crate) fn ui_pre_game_menu_system(
 
                             ui.add(ProgressWidget {
                                 current_index: c.level_index,
-                                completed: false,
+                                current_completed: false,
                                 length: c.campaign.levels.len(),
                                 ..Default::default()
                             });
@@ -359,7 +359,7 @@ pub(crate) fn ui_post_game_system(mut state: ResMut<State<GameState>>, ctx: ResM
                             ui.label(format!("Score: {}", details.score));
                             ui.add(ProgressWidget {
                                 current_index: c.level_index,
-                                completed: true,
+                                current_completed: true,
                                 length: c.campaign.levels.len(),
                                 ..Default::default()
                             });

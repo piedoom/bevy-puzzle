@@ -1,71 +1,79 @@
+use std::cmp::Ordering;
+
 use crate::utils::colors::*;
 use bevy_egui::egui::{self, Color32, Widget};
 
 /// Shows what level we are currently on and how many there are to go/how many there were
 pub struct ProgressWidget {
     pub current_index: usize,
-    pub completed: bool,
+    pub current_completed: bool,
+    pub size: egui::Vec2,
     pub length: usize,
-    pub spacing: egui::Vec2,
-    pub node_size: f32,
 }
 
 impl Widget for ProgressWidget {
     fn ui(self, ui: &mut bevy_egui::egui::Ui) -> bevy_egui::egui::Response {
         let ProgressWidget {
             current_index,
-            completed,
+            current_completed,
+            size,
             length,
-            spacing,
-            node_size,
         } = self;
-        let (width, height) = (
-            (node_size * length as f32) + (spacing.x * (length - 1) as f32),
-            node_size + (spacing.y * 2f32),
-        );
-        let calc_size = egui::Vec2::new(width / length as f32, height);
-        let (resp, paint) =
-            ui.allocate_painter(egui::Vec2::new(width, height), egui::Sense::hover());
-        let get_center = |index| -> egui::Pos2 {
-            let x = (calc_size * (index + 1) as f32) - (calc_size / 2f32);
-            resp.rect.left_center() + (egui::Vec2::X * x)
-        };
-        for i in 0..length {
-            let center = get_center(i);
-            let radius = node_size / 2f32;
 
-            let (fill_color, stroke) = match i.cmp(&current_index) {
-                std::cmp::Ordering::Less => {
-                    // already completed level
-                    (BLUE_COLOR, egui::Stroke::new(2f32, BLUE_COLOR))
-                }
-                std::cmp::Ordering::Equal => {
-                    // current level
-                    match completed {
-                        true => (Color32::GREEN, egui::Stroke::new(2f32, Color32::GREEN)),
-                        false => (
-                            Color32::TRANSPARENT,
-                            egui::Stroke::new(2f32, Color32::YELLOW),
-                        ),
-                    }
-                }
-                std::cmp::Ordering::Greater => {
-                    (Color32::TRANSPARENT, egui::Stroke::new(2f32, Color32::GRAY))
-                }
+        let radius = size.y / 2f32;
+
+        // [()=()=()=()]
+        //  |--|--|--|--
+        //    ^  ^  ^  ^    block_size
+
+        // subtract margin from either of our width
+        let width = size.x - (radius * 2f32);
+
+        // Divide the width by the amount of nodes minus one to give us the block size we want
+        let block_size = width / (length - 1) as f32;
+
+        // Place a block at the center left of every block
+        let (resp, paint) = ui.allocate_painter(size, egui::Sense::hover());
+        for i in 0..length {
+            let center = |i| {
+                resp.rect.left_center()
+                // add spacing back
+                + (egui::Vec2::X * radius)
+                // move forward by a block size
+                + (egui::Vec2::X * (block_size * i as f32))
             };
-            paint.circle(center, radius, fill_color, stroke);
-            if !completed && i == current_index {
-                // add a smaller inner circle to show current level
-                paint.circle_filled(center, radius / 2f32, Color32::YELLOW);
+
+            // Get colors
+            let order = i.cmp(&current_index);
+            // Get a specific color to fill/stroke each node based on the current position
+            let (color, filled) = match order {
+                Ordering::Less => (GREEN_COLOR, true),
+                Ordering::Equal => match current_completed {
+                    true => (GREEN_COLOR, true),
+                    false => (YELLOW_COLOR, false),
+                },
+                Ordering::Greater => (CONTRAST_LOW_COLOR, false),
+            };
+
+            let fill_color = if filled { color } else { Color32::TRANSPARENT };
+            paint.circle(
+                center(i),
+                radius - 1f32, // account for stroke
+                fill_color,
+                egui::Stroke::new(2f32, color),
+            );
+            if order == Ordering::Equal && !current_completed {
+                paint.circle_filled(center(i), radius * 0.6f32, color);
             }
+
             // draw a line to connect circles in-between
             if i != length - 1 {
                 paint.line_segment(
                     [
-                        get_center(i) + (egui::Vec2::X * radius),
-                        get_center(i + 1) - (egui::Vec2::X * radius),
+                        center(i) + (egui::Vec2::X * radius),
+                        center(i + 1) - (egui::Vec2::X * radius),
                     ],
-                    stroke,
+                    egui::Stroke::new(2f32, color),
                 );
             }
         }
@@ -77,10 +85,9 @@ impl Default for ProgressWidget {
     fn default() -> Self {
         Self {
             current_index: 0,
-            completed: false,
+            current_completed: false,
             length: 3,
-            spacing: egui::Vec2::new(32f32, 8f32),
-            node_size: 16f32,
+            size: egui::Vec2::new(200f32, 32f32),
         }
     }
 }
