@@ -20,5 +20,5 @@ pub mod prelude {
     pub use plugins::*;
     pub use resources::*;
     pub use state::*;
-    pub use utils::*;
+    pub use utils::{colors::*, *};
 }

@@ -1,4 +1,7 @@
 use bevy::{asset::*, prelude::*, reflect::TypeUuid};
+use bevy_egui::egui::Color32;
+
+use crate::prelude::colors::*;
 
 #[derive(Default, Debug, Clone, TypeUuid, serde::Deserialize, Component)]
 #[uuid = "39cadc56-aa9c-4543-8640-a018b74b505b"]
@@ -8,7 +11,7 @@ pub struct Pattern {
     pub blocks: Vec<Vec2>,
 }
 
-#[derive(Default, Debug, Clone, serde::Deserialize, Component)]
+#[derive(Default, Debug, Clone, Copy, serde::Deserialize, Component)]
 pub enum PatternColor {
     #[default]
     Red,
@@ -40,19 +43,26 @@ impl From<&str> for PatternColor {
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<[u8; 4]> for PatternColor {
-    fn into(self) -> [u8; 4] {
+impl Into<[u8; 3]> for PatternColor {
+    fn into(self) -> [u8; 3] {
         match self {
-            PatternColor::Red => [235, 71, 111, 255],
-            PatternColor::Orange => [250, 103, 56, 255],
-            PatternColor::Yellow => [255, 210, 51, 255],
-            PatternColor::Lime => [197, 245, 61, 255],
-            PatternColor::Green => [73, 233, 137, 255],
-            PatternColor::LightBlue => [61, 223, 245, 255],
-            PatternColor::Blue => [51, 145, 255, 255],
-            PatternColor::Indigo => [93, 89, 255, 255],
-            PatternColor::Purple => [120, 61, 245, 255],
+            PatternColor::Red => RED,
+            PatternColor::Orange => ORANGE,
+            PatternColor::Yellow => YELLOW,
+            PatternColor::Lime => LIME,
+            PatternColor::Green => GREEN,
+            PatternColor::LightBlue => LIGHT_BLUE,
+            PatternColor::Blue => BLUE,
+            PatternColor::Indigo => INDIGO,
+            PatternColor::Purple => PURPLE,
         }
+    }
+}
+
+impl Into<Color32> for PatternColor {
+    fn into(self) -> Color32 {
+        let bytes: [u8; 3] = self.into();
+        Color32::from_rgb(bytes[0], bytes[1], bytes[2])
     }
 }
 

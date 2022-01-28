@@ -2,80 +2,64 @@ use crate::prelude::*;
 use bevy::math::Vec2;
 use bevy_egui::{
     self,
-    egui::{epaint::RectShape, Color32, Rect, Response, Sense, Stroke, Ui, Vec2 as EVec2, Widget},
+    egui::{
+        self, epaint::RectShape, Color32, Rect, Response, Sense, Stroke, Ui, Vec2 as EVec2, Widget,
+    },
 };
 
 /// Draws an arbitrary number of tiles with color on a grid
-#[derive(Default)]
 pub struct PatternWidget<'a> {
     pub pattern: Option<&'a Pattern>,
-    pub color: Color32,
-    pub size: Option<f32>,
+    pub width: f32,
+    pub amount: usize,
+    pub gap: f32,
 }
-impl<'a> PatternWidget<'a> {
-    pub fn new(pattern: Option<&'a Pattern>) -> Self {
-        Self {
-            pattern,
-            size: None,
-            color: pattern
-                .map(|x: &Pattern| {
-                    let u: [u8; 4] = x.clone().color.into();
-                    Color32::from_rgb(u[0], u[1], u[2])
-                })
-                .unwrap_or(Color32::WHITE),
-        }
-    }
 
-    #[must_use]
-    pub fn size(mut self, size: f32) -> Self {
-        self.size = Some(size);
-        self
+impl<'a> Default for PatternWidget<'a> {
+    fn default() -> Self {
+        Self {
+            pattern: Default::default(),
+            width: 100f32,
+            amount: 4,
+            gap: 2f32,
+        }
     }
 }
 
 impl<'a> Widget for PatternWidget<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let size = self.size.unwrap_or_else(|| ui.available_width());
-        // allocate a square
-        let (rect, _) = ui.allocate_exact_size(EVec2::new(size, size), Sense::hover());
-        // TODO: determine the number of "blocks" needed and the correct size to use based on the piece size
-        // get the largest side of the pattern. If no block is in the hold, default to a 4x4 grid
+        let (resp, paint) =
+            ui.allocate_painter(egui::Vec2::new(self.width, self.width), Sense::hover());
 
-        let grid_divisions = 4f32;
-        // split the available widget space into n number of blocks where the n number is equal to the largest side
-        let unit_size = rect.width() / grid_divisions;
-        ui.vertical(|ui| {
-            // create a grid hehe
-            for x in 0..grid_divisions as usize {
-                for y in 0..grid_divisions as usize {
-                    let mut local_rect = rect;
-                    local_rect = local_rect
-                        .translate(EVec2::new(x as f32 * unit_size, y as f32 * unit_size));
-                    let square_rect = Rect::from_two_pos(
-                        local_rect.min,
-                        local_rect.min + EVec2::new(unit_size, unit_size),
-                    );
-                    // create an empty grid
-                    ui.painter().add(RectShape {
-                        rect: square_rect,
-                        corner_radius: 0f32,
-                        fill: Color32::TRANSPARENT,
-                        stroke: Stroke::new(2f32, Color32::from_rgb(46, 45, 91)),
-                    });
-                    if let Some(pattern) = self.pattern {
-                        // highlight if correct coords
-                        if pattern.blocks.contains(&Vec2::new(x as f32, -(y as f32))) {
-                            ui.painter().add(RectShape {
-                                rect: square_rect,
-                                corner_radius: 0f32,
-                                fill: self.color,
-                                stroke: Stroke::new(2f32, self.color),
-                            });
-                        }
+        let item_size =
+            (resp.rect.width() - ((self.amount - 1) as f32 * self.gap)) / self.amount as f32;
+
+        for x in 0..self.amount {
+            for y in 0..self.amount {
+                let offset = egui::Vec2::new(
+                    (x as f32 * item_size) + (x as f32 * self.gap),
+                    (y as f32 * item_size) + (y as f32 * self.gap),
+                );
+
+                let rect = Rect {
+                    min: resp.rect.left_top() + offset,
+                    max: resp.rect.left_top() + egui::Vec2::splat(item_size) + offset,
+                };
+
+                paint.rect_stroke(
+                    rect.shrink(0.5f32),
+                    0.,
+                    egui::Stroke::new(1f32, BACKGROUND_LIGHT_COLOR),
+                );
+                if let Some(pattern) = self.pattern {
+                    if pattern.blocks.contains(&Vec2::new(x as f32, -(y as f32))) {
+                        let color: Color32 = pattern.color.into();
+                        paint.rect_filled(rect, 0., color);
                     }
                 }
             }
-        })
-        .response
+        }
+
+        resp
     }
 }

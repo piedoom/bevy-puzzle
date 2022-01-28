@@ -39,7 +39,7 @@ pub(crate) fn ui_main_system(
                     ) {
                         let window_height =
                             windows.get_primary().map(|x| x.height()).unwrap_or(0f32);
-                        let offset = 32f32 * ui_settings.scale_factor as f32;
+                        let offset = 48f32 * ui_settings.scale_factor as f32;
                         let pos = egui::Vec2::new(pos.x - offset, window_height - pos.y - offset)
                             / ui_settings.scale_factor as f32;
 
@@ -51,44 +51,14 @@ pub(crate) fn ui_main_system(
                             .current_pos(Pos2::new(pos.x, pos.y))
                             .show(ctx.ctx(), |ui| {
                                 ui.add(PlacementTimerWidget {
-                                    percent: timer.percent(),
-                                    size: egui::Vec2::splat(16f32),
-                                    stroke: Stroke::new(3f32, GREEN_COLOR),
+                                    size: egui::Vec2::splat(24f32),
+                                    timer_percent: timer.percent(),
+                                    timer_stroke: Stroke::new(5f32, GREEN_COLOR),
+                                    speed_percent: step.percent(&options).unwrap_or(1f32),
+                                    speed_stroke: Stroke::new(4f32, CONTRAST_HIGH_COLOR),
+                                    background_color: BACKGROUND_LIGHT_COLOR,
                                 });
                             });
-
-                        // egui::containers::Area::new("timer")
-                        //     .interactable(false)
-                        //     .current_pos(Pos2::new(pos.x, pos.y))
-                        //     .show(ctx.ctx(), |ui| {
-                        //         const STROKE_WIDTH: f32 = 1.;
-                        //         let (_, paint) = ui.allocate_painter(
-                        //             egui::Vec2::splat((radius + STROKE_WIDTH) * 2f32),
-                        //             Sense::click(),
-                        //         );
-
-                        //         // Background shape
-                        //         paint.add(Shape::circle_filled(
-                        //             Pos2::new(pos.x + radius, pos.y + radius),
-                        //             radius,
-                        //             Color32::from_rgb(
-                        //                 colors::BACKGROUND_LIGHT[0],
-                        //                 colors::BACKGROUND_LIGHT[1],
-                        //                 colors::BACKGROUND_LIGHT[2],
-                        //             ),
-                        //         ));
-
-                        //         // Placement timer shape
-                        //         paint.add(Shape::circle_filled(
-                        //             Pos2::new(pos.x + radius, pos.y + radius),
-                        //             radius * timer.get().percent(),
-                        //             Color32::from_rgb(
-                        //                 colors::GREEN[0],
-                        //                 colors::GREEN[1],
-                        //                 colors::GREEN[2],
-                        //             ),
-                        //         ));
-                        //     });
                     }
                 })
                 .ok();
@@ -126,14 +96,6 @@ pub(crate) fn ui_main_system(
                                 size: egui::Vec2::new(120., 20.),
                             });
                         }
-
-                        // Speed
-                        ui.heading("Speed");
-                        ui.add(SpeedWidget {
-                            size: egui::Vec2::new(300f32, 20.),
-                            timer_rate: &details.options.timer_rate,
-                            step: &step,
-                        });
                     });
                 });
 
@@ -188,25 +150,6 @@ pub(crate) fn ui_main_system(
                     });
                 });
 
-            // egui::containers::Area::new("speed")
-            //     .anchor(Align2::CENTER_BOTTOM, egui::Vec2::ZERO)
-            //     .show(ctx.ctx(), |ui| {
-            //         let window_size = windows
-            //             .get_primary()
-            //             .map(|window| egui::Vec2::new(window.width(), window.height()))
-            //             .unwrap_or(egui::Vec2::ZERO);
-            //         let window_width = window_size.x;
-
-            //         ui.vertical(|ui| {
-            //             ui.heading("Speed");
-            //             ui.add(SpeedWidget {
-            //                 size: egui::Vec2::new(300f32.clamp(0.0, window_width), 20.),
-            //                 timer_rate: &details.options.timer_rate,
-            //                 step: &step,
-            //             });
-            //         });
-            //     });
-
             // Side panel info
             egui::containers::Area::new("panel")
                 .anchor(Align2::RIGHT_TOP, egui::Vec2::new(-32f32, 32f32))
@@ -215,7 +158,10 @@ pub(crate) fn ui_main_system(
                     ui.vertical(|ui| {
                         // Create a widget for our held piece, if we are allowed
                         if options.can_hold {
-                            ui.add(PatternWidget::new(hold.get()).size(128f32));
+                            ui.add(PatternWidget {
+                                pattern: hold.get(),
+                                ..Default::default()
+                            });
                             ui.heading("Hold");
                             ui.add_space(50f32);
                         }
@@ -223,7 +169,10 @@ pub(crate) fn ui_main_system(
                         // Create a widget for our next-up pattern, if we are allowed to view it
                         if options.can_peek {
                             if let Some(next_pattern) = patterns.get(next_up.get()) {
-                                ui.add(PatternWidget::new(Some(next_pattern)).size(128f32));
+                                ui.add(PatternWidget {
+                                    pattern: Some(next_pattern),
+                                    ..Default::default()
+                                });
                                 ui.heading("Next");
                                 ui.add_space(50f32);
                             }
