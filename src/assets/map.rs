@@ -5,19 +5,19 @@ use bevy::{math::Vec2, reflect::TypeUuid};
     serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Default, Debug, Clone, Eq, Hash,
 )]
 #[uuid = "accdef12-3456-4fa8-adc4-78c5822268f8"]
-pub struct Map {
+pub struct MapAsset {
     pub name: String,
     /// The pattern
     pub pattern: Vec<(isize, isize)>,
 }
 
-impl std::fmt::Display for Map {
+impl std::fmt::Display for MapAsset {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
 
-impl Map {
+impl MapAsset {
     pub fn default_name() -> &'static str {
         "default"
     }

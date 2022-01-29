@@ -58,7 +58,7 @@ impl Display for Campaign {
 
 #[derive(PartialEq, Clone, Debug, Eq, Hash)]
 pub struct Level {
-    pub map: Handle<Map>,
+    pub map: Handle<MapAsset>,
     pub options: GameOptions,
     pub objective: Objective,
 }

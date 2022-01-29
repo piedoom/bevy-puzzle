@@ -2,9 +2,7 @@ use crate::prelude::*;
 use bevy::math::Vec2;
 use bevy_egui::{
     self,
-    egui::{
-        self, epaint::RectShape, Color32, Rect, Response, Sense, Stroke, Ui, Vec2 as EVec2, Widget,
-    },
+    egui::{self, Color32, Rect, Response, Sense, Ui, Widget},
 };
 
 /// Draws an arbitrary number of tiles with color on a grid

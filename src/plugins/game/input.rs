@@ -133,19 +133,10 @@ fn add_to_hold_system(
 /// Commit a piece on click. Failure should not end in a loss.
 fn click_commit_system(
     mut events: EventWriter<GameEvent>,
-    audio: Res<Audio>,
-    theme: Option<Res<Theme>>,
     input: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
 ) {
     if input.just_pressed(MouseButton::Left) || keyboard.just_pressed(KeyCode::Space) {
-        if let Some(theme) = theme {
-            // let random = rand::thread_rng().gen::<f32>();
-            // let scale = 0.2;
-            // let rate = 1.0 + (random * scale);
-            // audio.set_playback_rate(rate);
-            audio.play(theme.sfx.place.clone());
-        }
         events.send(GameEvent::CommitActive);
     }
 }

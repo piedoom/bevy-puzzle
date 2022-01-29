@@ -42,7 +42,7 @@ pub enum GameResult {
 /// one-off, or can be embedded as part of a campaign level.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct GameDetails {
-    pub map: Handle<Map>,
+    pub map: Handle<MapAsset>,
     pub options: GameOptions,
     pub objective: Objective,
 }

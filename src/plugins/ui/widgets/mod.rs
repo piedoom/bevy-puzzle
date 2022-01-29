@@ -1,5 +1,3 @@
-use bevy_egui::egui;
-
 mod bar;
 mod pattern;
 mod progress;

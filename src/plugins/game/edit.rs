@@ -92,7 +92,7 @@ fn process_events_system(
     mut cmd: Commands,
     mut events: EventReader<EditEvent>,
     mut state: ResMut<State<GameState>>,
-    mut maps: ResMut<Assets<Map>>,
+    mut maps: ResMut<Assets<MapAsset>>,
     preview: Query<(Entity, &GlobalTransform), With<PreviewTile>>,
     board: Query<(Entity, &GlobalTransform), With<GameBoard>>,
 ) {
@@ -122,7 +122,7 @@ fn process_events_system(
                 // assemble map into a vec
                 let pattern: Vec<(isize, isize)> = current_tiles_to_vec(&board);
                 // save
-                let data = Map {
+                let data = MapAsset {
                     name: name.clone(),
                     pattern,
                 };
@@ -131,7 +131,7 @@ fn process_events_system(
                 writeln!(file, "{}", serialized).unwrap();
             }
             EditEvent::RunCurrentMap { options: _options } => {
-                let map = Map {
+                let map = MapAsset {
                     pattern: current_tiles_to_vec(&board),
                     ..Default::default()
                 };

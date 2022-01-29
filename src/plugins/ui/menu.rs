@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use bevy_egui::{
@@ -7,17 +9,19 @@ use bevy_egui::{
 
 #[derive(Default)]
 pub struct MenuState {
-    pub map: Option<Handle<Map>>,
+    pub map: Option<Handle<MapAsset>>,
     pub save: Option<Save>,
     pub page: MenuPage,
 }
 
 /// Determines which page of the initial menu we are on
+#[allow(dead_code)]
 #[derive(Default, Clone)]
 pub enum MenuPage {
     #[default]
     Initial,
     Help,
+    Endless,
     NewCampaign {
         campaign: Option<Campaign>,
     },
@@ -34,6 +38,7 @@ pub(crate) fn ui_menu_system(
     saves: Res<Assets<Save>>,
     ctx: ResMut<EguiContext>,
     campaigns: Res<Campaigns>,
+    maps: Res<Assets<MapAsset>>,
 ) {
     ui_settings.scale_factor = 2f64;
     egui::Area::new("menu")
@@ -57,22 +62,46 @@ pub(crate) fn ui_menu_system(
                             };
                         }
 
+                        if ui.button("Endless Mode").clicked() {
+                            state.replace(GameState::Game(
+                                GameType::Other(
+                                    GameDetails{
+                                        map: maps.get_handle(maps.iter().find(
+                                            |(_,a)|
+                                            a.name == MapAsset::default_name()
+                                        ).unwrap().0),
+                                        options: GameOptions {
+                                            can_rotate: true,
+                                            can_hold: true,
+                                            can_peek: true,
+                                            timer_rate: TimerRate::Progressive {
+                                                start_rate: Duration::from_millis(3000),
+                                                end_rate: Duration::from_millis(500),
+                                                delay: 8,
+                                                steps: 64,
+                                            },
+                                            patterns: Some(classic_patterns()),
+                                            scorer: Scorer::Square(3),
+                                            theme: Default::default(),
+                                        },
+                                        objective: Objective::FreePlay,
+                                    }
+                                ))).ok();
+                        }
+
                         if ui.button("Help").clicked() {
                             menu_state.page = MenuPage::Help;
                         }
 
-
+                        /*
                         if ui.button("Load Campaign").clicked() {
                            // menu_state.page = MenuPage::LoadSavedCampaign;
-                        }
-
-                        if ui.button("Custom Game").clicked() {
-                           // menu_state.page = MenuPage::NewCustom;
                         }
 
                         if ui.button("Map Editor").clicked() {
                            // menu_state.page = MenuPage::NewMap;
                         }
+                        */
                     });
                 }
                 MenuPage::NewCampaign { campaign } => {
@@ -213,7 +242,7 @@ fn combo_box<T, F>(
 /// Shows the game information before beginning the level
 pub(crate) fn ui_pre_game_menu_system(
     mut state: ResMut<State<GameState>>,
-    maps: Res<Assets<Map>>,
+    maps: Res<Assets<MapAsset>>,
     ctx: ResMut<EguiContext>,
 ) {
     match state.current().clone() {
@@ -389,4 +418,15 @@ pub(crate) fn ui_post_game_system(mut state: ResMut<State<GameState>>, ctx: ResM
                 }
             });
     }
+}
+
+fn classic_patterns() -> Vec<String> {
+    vec![
+        "quad".to_string(),
+        "bracket right".to_string(),
+        "bracket left".to_string(),
+        "pyramid".to_string(),
+        "snake left".to_string(),
+        "snake right".to_string(),
+    ]
 }

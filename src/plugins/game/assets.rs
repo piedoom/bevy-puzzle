@@ -27,14 +27,14 @@ impl Plugin for AssetPlugin {
             .init_resource::<Campaigns>()
             .init_resource::<Stage>()
             .add_asset::<AssetManifest>()
-            .add_asset::<ThemeDescription>()
+            .add_asset::<ThemeDescriptionAsset>()
             .add_asset::<Pattern>()
-            .add_asset::<Map>()
+            .add_asset::<MapAsset>()
             .add_asset::<CampaignDescription>()
             .add_asset::<Save>()
-            .add_plugin(RonAssetPlugin::<Map>::new(&["map"]))
+            .add_plugin(RonAssetPlugin::<MapAsset>::new(&["map"]))
             .add_plugin(RonAssetPlugin::<UserPreferencesAsset>::new(&["rfg"]))
-            .add_plugin(RonAssetPlugin::<ThemeDescription>::new(&["theme"]))
+            .add_plugin(RonAssetPlugin::<ThemeDescriptionAsset>::new(&["theme"]))
             .add_plugin(RonAssetPlugin::<CampaignDescription>::new(&["campaign"]))
             .add_plugin(RonAssetPlugin::<Save>::new(&["save"]))
             .add_plugin(RonAssetPlugin::<AssetManifest>::new(&["manifest"]))
@@ -65,10 +65,10 @@ fn load_assets_system(
     mut campaigns: ResMut<Campaigns>,
     mut settings_handle: ResMut<Handle<UserPreferencesAsset>>,
     campaign_descriptions: Res<Assets<CampaignDescription>>,
-    theme_assets: Res<Assets<ThemeDescription>>,
+    theme_assets: Res<Assets<ThemeDescriptionAsset>>,
     assets: Res<AssetServer>,
     #[cfg(target_arch = "wasm32")] manifests: Res<Assets<AssetManifest>>,
-    maps: Res<Assets<Map>>,
+    maps: Res<Assets<MapAsset>>,
 ) {
     let done_loading = loading
         .0
@@ -77,7 +77,7 @@ fn load_assets_system(
         .count()
         == 0;
 
-    let mut theme_from_description = |desc: &ThemeDescription| -> Theme {
+    let mut theme_from_description = |desc: &ThemeDescriptionAsset| -> Theme {
         let load_audio = |path: &String, loading: &mut PreloadingAssets| {
             let handle: Handle<AudioSource> = assets.load(format!("sounds/{}.ogg", path).as_str());
             loading.0.push(handle.clone_untyped());

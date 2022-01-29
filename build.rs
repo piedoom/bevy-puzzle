@@ -1,5 +1,4 @@
 use serde::{self, Serialize};
-use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::env;
 use std::fs::{DirEntry, File};

@@ -59,6 +59,7 @@ impl Into<[u8; 3]> for PatternColor {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Color32> for PatternColor {
     fn into(self) -> Color32 {
         let bytes: [u8; 3] = self.into();

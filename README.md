@@ -11,3 +11,7 @@ Then you can use
 ```
 basic-http-server
 ```
+
+buglist:
+
+- Placing right before a timer is done may result in the timer going off before the event to place the tile has been executed causing unexpected behavior

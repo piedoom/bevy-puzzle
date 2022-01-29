@@ -9,7 +9,7 @@ use bevy_kira_audio::AudioSource;
     serde::Deserialize, serde::Serialize, TypeUuid, PartialEq, Default, Debug, Clone, Eq, Hash,
 )]
 #[uuid = "1dffade1-9c71-ffff-adc4-78c5822268fb"]
-pub struct ThemeDescription {
+pub struct ThemeDescriptionAsset {
     pub name: String,
     pub sfx: ThemeSfx<String>,
     pub sprites: ThemeSprites<String>,
@@ -61,7 +61,7 @@ impl AssetLoader for ThemeLoader {
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
         Box::pin(async move {
-            let asset = ron::de::from_bytes::<ThemeDescription>(bytes)?;
+            let asset = ron::de::from_bytes::<ThemeDescriptionAsset>(bytes)?;
             load_context.set_default_asset(LoadedAsset::new(asset));
             Ok(())
         })

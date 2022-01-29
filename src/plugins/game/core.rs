@@ -1,13 +1,10 @@
 //! Systems needed to represent the bare-minimum of the game. Systems here
 //! set up the game board, score pieces, and control the [`PlacementTimer`] among other things.
-use crate::prelude::*;
-use bevy::{
-    app::Events,
-    prelude::*,
-    render::camera::Camera,
-    utils::{Duration, Instant},
-};
+use std::time::Duration;
 
+use crate::prelude::*;
+use bevy::{app::Events, prelude::*, utils::Instant};
+use bevy_kira_audio::Audio as KAudio;
 pub struct CorePuzzlePlugin;
 
 impl Plugin for CorePuzzlePlugin {
@@ -275,7 +272,7 @@ fn setup_system(
     mut next: ResMut<NextUp>,
     mut bounds: ResMut<Bounds<Vec2>>,
     themes: Res<Themes>,
-    maps: Res<Assets<Map>>,
+    maps: Res<Assets<MapAsset>>,
     state: Res<State<GameState>>,
     settings: Res<Assets<UserPreferencesAsset>>,
     current_setting: Res<Handle<UserPreferencesAsset>>,
@@ -393,6 +390,8 @@ fn process_events_system(
     hover: Query<Entity, (With<tile_styles::Hover>, With<GameBoard>)>,
     pattern_assets: Res<Assets<Pattern>>,
     cursor: Res<CursorPosition>,
+    audio: Res<KAudio>,
+    theme: Option<Res<Theme>>,
 ) {
     let mut send_events = vec![];
 
@@ -442,7 +441,7 @@ fn process_events_system(
                                     tile_states::Full,
                                     local_transform,
                                     GlobalTransform::from(local_transform),
-                                    pattern.color.clone(),
+                                    pattern.color,
                                     Tile,
                                 ));
                             }
@@ -457,7 +456,7 @@ fn process_events_system(
                 // First, check to see if the amount of blocks in our `ActiveEntity` match the amount of hovers. If they do not, this is a failure!
                 let (actives, color) = active
                     .get_single_mut()
-                    .map(|(.., pattern)| (pattern.blocks.len(), pattern.color.clone()))
+                    .map(|(.., pattern)| (pattern.blocks.len(), pattern.color))
                     .unwrap_or((0, Default::default()));
 
                 if hover.iter().count() == actives {
@@ -465,8 +464,13 @@ fn process_events_system(
                     hover.for_each(|e| {
                         transition::<tile_states::Empty, tile_states::Full>(&mut cmd, e);
                         transition::<tile_styles::Hover, tile_styles::None>(&mut cmd, e);
-                        cmd.entity(e).insert(color.clone());
+                        cmd.entity(e).insert(color);
                     });
+
+                    // play a sound
+                    if let Some(theme) = &theme {
+                        audio.play(theme.sfx.place.clone());
+                    }
 
                     // This check is needed in case the event is processed after a change that resets our next piece
                     if let Some(pattern) = pattern_assets.get(next.get().clone()) {

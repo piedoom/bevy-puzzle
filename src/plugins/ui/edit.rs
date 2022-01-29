@@ -60,9 +60,9 @@ fn edit_menu_system(
         });
 }
 
-fn set_default_ui_data_system(mut menu_state: ResMut<MenuState>, maps: Res<Assets<Map>>) {
+fn set_default_ui_data_system(mut menu_state: ResMut<MenuState>, maps: Res<Assets<MapAsset>>) {
     menu_state.map = maps.iter().find_map(|(id, map)| {
-        if map.name == Map::default_name() {
+        if map.name == MapAsset::default_name() {
             Some(maps.get_handle(id))
         } else {
             None
