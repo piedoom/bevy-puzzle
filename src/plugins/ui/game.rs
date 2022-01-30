@@ -87,13 +87,13 @@ pub(crate) fn ui_main_system(
                                 _ => unreachable!(),
                             };
                             ui.add(BarWidget::<f32> {
-                                color_background: colors::BACKGROUND_COLOR,
-                                color_foreground: colors::GREEN_COLOR,
-                                color_outline: colors::BACKGROUND_LIGHT_COLOR,
+                                color_background: BACKGROUND_COLOR,
+                                color_foreground: GREEN_COLOR,
+                                color_outline: BACKGROUND_LIGHT_COLOR,
                                 direction: egui::Direction::LeftToRight,
                                 range,
                                 current: Instant::now().duration_since(*started).as_secs_f32(),
-                                size: egui::Vec2::new(120., 20.),
+                                size: egui::Vec2::new(300., 20.),
                             });
                         }
                     });

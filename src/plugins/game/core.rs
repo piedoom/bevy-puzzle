@@ -251,7 +251,7 @@ fn game_win_loss_system(
 
             if let Some(result) = result {
                 state
-                    .replace(GameState::PostGame(PostGameDetails {
+                    .push(GameState::PostGame(PostGameDetails {
                         game_type,
                         score: **score,
                         result,
@@ -491,7 +491,7 @@ fn process_events_system(
                 else if let GameEvent::TimerCommitActive = event {
                     if let GameState::Game(game_type) = state.current().clone() {
                         state
-                            .replace(GameState::PostGame(PostGameDetails {
+                            .push(GameState::PostGame(PostGameDetails {
                                 game_type: game_type.clone(),
                                 score: **score,
                                 result: GameResult::Lose,

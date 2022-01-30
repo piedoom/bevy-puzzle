@@ -371,12 +371,16 @@ pub(crate) fn ui_post_game_system(mut state: ResMut<State<GameState>>, ctx: ResM
             GameResult::Win => "Won",
         };
 
-        egui::containers::Area::new("post_game")
+        egui::containers::Window::new("post_game")
             .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .resizable(false)
+            .collapsible(false)
+            .title_bar(false)
             .show(ctx.ctx(), |ui| {
                 ui.vertical(|ui| {
                     ui.heading(t);
                 });
+                ui.label(format!("Score: {}", details.score));
                 match details.result {
                     GameResult::Lose => {
                         if ui.button("Retry").clicked() {
@@ -385,7 +389,6 @@ pub(crate) fn ui_post_game_system(mut state: ResMut<State<GameState>>, ctx: ResM
                     }
                     GameResult::Win => match &details.game_type {
                         GameType::Campaign(c) => {
-                            ui.label(format!("Score: {}", details.score));
                             ui.add(ProgressWidget {
                                 current_index: c.level_index,
                                 current_completed: true,
