@@ -180,30 +180,32 @@ pub(crate) fn ui_menu_system(
                     });
                 }
                 MenuPage::Help => {
-                    ui.vertical(|ui| {
-                        if ui.button("Back").clicked() {
-                            menu_state.page = MenuPage::Initial;
-                        }
-                        ui.heading("Help");
-                        ui.add_space(32f32);
-                        ui.small("OBJECTIVE");
-                        ui.label("Increase your score by clearing tiles");
-                        ui.add_space(32f32);
-                        ui.small("CONTROLS");
-                        ui.label("Mouse movement / Arrow keys === Move tile");
-                        ui.label("Left mouse button / Space === Place tile");
-                        ui.label("A / D === Rotate piece counter clockwise and clockwise");
-                        ui.label("Shift / Middle mouse === Swap piece with piece in the hold");
-                        ui.add_space(32f32);
-                        ui.small("GAMEMODES");
-                        ui.label("Freeplay: Play for as long as you can survive");
-                        ui.label("Survival: Stay alive for a set time.");
-                        ui.label("Total Score: Reach a set total score with no time limit.");
-                        ui.label("Time Trial: Reach a set number of points in limited time.");
-                        ui.add_space(32f32);
-                        ui.small("RULESETS");
-                        ui.label("3x3 (most common): Blocks will clear when at least a 3x3 area is filled.");
-                        ui.label("Line: Blocks will clear when a continuous line is formed horizontally, vertically, or both.");
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.vertical(|ui| {
+                            if ui.button("Back").clicked() {
+                                menu_state.page = MenuPage::Initial;
+                            }
+                            ui.heading("Help");
+                            ui.add_space(32f32);
+                            ui.small("OBJECTIVE");
+                            ui.label("Increase your score by clearing tiles");
+                            ui.add_space(32f32);
+                            ui.small("CONTROLS");
+                            ui.label("Mouse movement / Arrow keys === Move tile");
+                            ui.label("Left mouse button / Space === Place tile");
+                            ui.label("A / D === Rotate piece counter clockwise and clockwise");
+                            ui.label("Shift / Middle mouse === Swap piece with piece in the hold");
+                            ui.add_space(32f32);
+                            ui.small("GAMEMODES");
+                            ui.label("Freeplay: Play for as long as you can survive");
+                            ui.label("Survival: Stay alive for a set time.");
+                            ui.label("Total Score: Reach a set total score with no time limit.");
+                            ui.label("Time Trial: Reach a set number of points in limited time.");
+                            ui.add_space(32f32);
+                            ui.small("RULESETS");
+                            ui.label("3x3 (most common): Blocks will clear when at least a 3x3 area is filled.");
+                            ui.label("Line: Blocks will clear when a continuous line is formed horizontally, vertically, or both.");
+                        });
                     });
                 }
                 _ => todo!(),
@@ -376,13 +378,15 @@ pub(crate) fn ui_post_game_system(
     mut state: ResMut<State<GameState>>,
     mut menu_state: ResMut<PostGameMenuResource>,
     mut database_events: EventWriter<DatabaseEvent>,
-    username: Option<ResMut<UsernameResource>>,
+    high_scores: Res<HighScoresResource>,
+    username: Option<Res<UsernameResource>>,
     ctx: ResMut<EguiContext>,
 ) {
     if let GameState::PostGame(details) = state.current().clone() {
         egui::containers::Window::new("post_game")
             .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
             .resizable(false)
+            .fixed_size(egui::Vec2::new(200f32, 200f32))
             .collapsible(false)
             .title_bar(false)
             .show(ctx.ctx(), |ui| {
@@ -427,21 +431,38 @@ pub(crate) fn ui_post_game_system(
                     }
                     GameType::Endless(_details) => {
                         // prompt user for their name if we lost and the `UsernameResource` is not set
-                        if username.is_none() {
-                            // name hasn't been asked for yet, do that now -
-                            ui.text_edit_singleline(&mut menu_state.name_input);
-                            if ui.button("Add my score").clicked() {
-                                // set as resource
-                                cmd.insert_resource(UsernameResource::new(
-                                    menu_state.name_input.clone(),
-                                ));
-                                // upload score
-                                database_events.send(DatabaseEvent::InsertScore(ScoreRecord {
-                                    score: details.score,
-                                    name: menu_state.name_input.to_string(),
-                                }))
+                        match username {
+                            None => {
+                                // name hasn't been asked for yet, do that now -
+                                ui.text_edit_singleline(&mut menu_state.name_input);
+                                if ui.button("Add my score").clicked() {
+                                    // set as resource
+                                    cmd.insert_resource(UsernameResource::new(
+                                        menu_state.name_input.clone(),
+                                    ));
+                                    // upload score
+                                    database_events.send(DatabaseEvent::InsertScore(ScoreRecord {
+                                        score: details.score,
+                                        name: menu_state.name_input.to_string(),
+                                    }));
+                                }
+                            }
+                            Some(_username) => {
+                                egui::ScrollArea::vertical().show(ui, |ui| {
+                                    if let Some(scores) = &high_scores.0 {
+                                        for (i, score) in scores.iter().enumerate() {
+                                            ui.label(format!(
+                                                "{}: {}: {}",
+                                                i, score.name, score.score
+                                            ));
+                                        }
+                                    } else {
+                                        ui.label("Loading scores...");
+                                    }
+                                });
                             }
                         }
+
                         if ui.button("Replay").clicked() {
                             state.replace(GameState::PreGame(details.game_type)).ok();
                         }

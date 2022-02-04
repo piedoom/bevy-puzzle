@@ -1,5 +1,7 @@
 //! Score for the current game state. This resets every level.
-use std::ops::{Add, AddAssign, Deref};
+use std::ops::{Add, AddAssign, Deref, DerefMut};
+
+use crate::prelude::ScoreRecord;
 
 #[derive(Default)]
 pub struct Score(usize);
@@ -23,5 +25,22 @@ impl Deref for Score {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+#[derive(Default)]
+pub struct HighScoresResource(pub Option<Vec<ScoreRecord>>);
+
+impl Deref for HighScoresResource {
+    type Target = Option<Vec<ScoreRecord>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for HighScoresResource {
+    fn deref_mut(&mut self) -> &mut <Self as std::ops::Deref>::Target {
+        &mut self.0
     }
 }
