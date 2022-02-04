@@ -1,7 +1,11 @@
 //! Score for the current game state. This resets every level.
 use std::ops::{Add, AddAssign, Deref, DerefMut};
 
-use crate::prelude::ScoreRecord;
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct ScoreRecord {
+    pub score: usize,
+    pub name: String,
+}
 
 #[derive(Default)]
 pub struct Score(usize);

@@ -24,8 +24,10 @@ impl PluginGroup for PuzzleGamePlugins {
             .add(game::EditPlugin)
             .add(game::InputPlugin)
             .add(game::StylePlugin)
-            .add(shaders::ShadersPlugin)
-            .add(misc::database::DatabasePlugin);
+            .add(shaders::ShadersPlugin);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        app.add(misc::http::HttpPlugin);
 
         #[cfg(target_arch = "wasm32")]
         app.add(misc::resize::ViewportResizedPlugin);

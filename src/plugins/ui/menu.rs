@@ -377,7 +377,7 @@ pub(crate) fn ui_post_game_system(
     mut cmd: Commands,
     mut state: ResMut<State<GameState>>,
     mut menu_state: ResMut<PostGameMenuResource>,
-    mut database_events: EventWriter<DatabaseEvent>,
+    #[cfg(not(target_arch = "wasm32"))] mut http_events: EventWriter<HttpEvent>,
     high_scores: Res<HighScoresResource>,
     username: Option<Res<UsernameResource>>,
     ctx: ResMut<EguiContext>,
@@ -441,7 +441,8 @@ pub(crate) fn ui_post_game_system(
                                         menu_state.name_input.clone(),
                                     ));
                                     // upload score
-                                    database_events.send(DatabaseEvent::InsertScore(ScoreRecord {
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    http_events.send(HttpEvent::InsertScore(ScoreRecord {
                                         score: details.score,
                                         name: menu_state.name_input.to_string(),
                                     }));

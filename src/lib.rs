@@ -15,8 +15,9 @@ pub mod prelude {
     use super::*;
     pub use assets::*;
     pub use components::*;
-    pub use database::*;
     pub use events::*;
+    #[cfg(not(target_arch = "wasm32"))]
+    pub use http::*;
     pub use plugins::ui::widgets::*;
     pub use plugins::*;
     pub use resources::*;

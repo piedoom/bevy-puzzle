@@ -1,52 +1,55 @@
 [package]
-name = "puzzle"
-version = "0.1.0"
 authors = ["doomy <2640792-_doomy@users.noreply.gitlab.com>"]
 edition = "2021"
-
-[lib]
-name = "pz"
+name = "puzzle"
+version = "0.1.0"
+[build-dependencies]
+ron = "*"
+serde = "*"
 
 [dependencies]
-serde = "*"
-ron = "*"
 anyhow = "*"
-rand = {version = "*"}
-tracing = "0.1.29"
-lyon_geom = "0.17"
-postgrest = "1.1"
 dotenv = "0.15"
-serde_json = "1.0"
-reqwest = { version = "0.11", features = ["json"] }
 futures-lite = "1.12"
-tokio = {version = "1.16", features = ["rt"], default_features = false}
-async-compat = "0.2"
+lyon_geom = "0.17"
+ron = "*"
+serde = "*"
+serde_json = "1.0"
+surf = { version = "2.3", default_features = false, features = ["wasm-client"] }
+tracing = "0.1.29"
 
 [dependencies.bevy]
-version = "0.6"
 default_features = true
-
-[dependencies.chrono]
-version = "0.4"
-features = ["serde", "wasmbind"]
-
-[dependencies.bevy_kira_audio]
-branch = "bevy_main"
-git = "https://github.com/piedoom/bevy_kira_audio"
+version = "0.6"
 
 [dependencies.bevy_egui]
 branch = "main"
 git = "https://github.com/mvlabat/bevy_egui"
 
-[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
-gloo-events = "0.1"
+[dependencies.bevy_kira_audio]
+branch = "bevy_main"
+git = "https://github.com/piedoom/bevy_kira_audio"
+
+[dependencies.chrono]
+features = ["serde", "wasmbind"]
+version = "0.4"
+
+[dependencies.rand]
+version = "*"
+
+[lib]
+name = "pz"
+
+[patch]
+[patch.crates-io]
+[patch.crates-io.bevy]
+branch = "main"
+git = "https://github.com/bevyengine/bevy"
+
+[target]
+[target."cfg(all(target_arch = \"wasm32\", target_os = \"unknown\"))"]
+[target."cfg(all(target_arch = \"wasm32\", target_os = \"unknown\"))".dependencies]
 futures = "0.3"
+gloo-events = "0.1"
 wasm-bindgen = "0.2"
 web-sys = "0.3"
-
-[patch.crates-io]
-bevy = { git = 'https://github.com/bevyengine/bevy', branch = "main" }
-
-[build-dependencies]
-serde = "*"
-ron = "*"

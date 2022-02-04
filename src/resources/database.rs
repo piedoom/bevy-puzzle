@@ -1,19 +1,28 @@
 use bevy::tasks::Task;
-use postgrest::Postgrest;
-use std::env;
+use std::{env, ops::Deref};
+use surf::{self, HttpClient};
 
-type DatabaseTask = Task<Result<reqwest::Response, reqwest::Error>>;
-pub struct DatabaseResource {
-    pub client: Postgrest,
-    //pub insert_tasks: Vec<DatabaseTask>,
+pub struct HttpResource(surf::Client);
+
+impl Deref for HttpResource {
+    type Target = surf::Client;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-impl Default for DatabaseResource {
+impl Default for HttpResource {
     fn default() -> Self {
-        Self {
-            client: Postgrest::new(env::var("ENDPOINT").expect("ENDPOINT not set"))
-                .insert_header("apikey", env::var("API_KEY").expect("API_KEY not set")),
-            // insert_tasks: Default::default(),
-        }
+        let endpoint = surf::Url::parse(&env::var("ENDPOINT").expect("ENDPOINT not set"))
+            .expect("Could not parse endpoint");
+        let api_key = env::var("API_KEY").expect("API_KEY not set");
+        let client: surf::Client = surf::Config::new()
+            .set_base_url(endpoint)
+            .add_header("apikey", api_key)
+            .expect("headers wonky")
+            .try_into()
+            .unwrap();
+        Self(client)
     }
 }
