@@ -1,6 +1,5 @@
-use bevy::tasks::Task;
 use std::{env, ops::Deref};
-use surf::{self, HttpClient};
+use surf;
 
 pub struct HttpResource(surf::Client);
 

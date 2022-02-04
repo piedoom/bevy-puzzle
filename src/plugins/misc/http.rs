@@ -1,19 +1,13 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
+use std::collections::HashMap;
 
-use futures_lite::{future, Future};
+use futures_lite::future;
 use serde_json::json;
-use surf::Error;
 
 use crate::prelude::*;
 use bevy::{
     prelude::*,
     tasks::{IoTaskPool, Task},
 };
-use serde::{Deserialize, Serialize};
-
 pub struct HttpPlugin;
 
 impl Plugin for HttpPlugin {
@@ -55,7 +49,7 @@ fn update_high_scores_system(
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component)]
 pub struct TaskComponent(pub Task<HttpEvent>);
 
 fn process_http_tasks_system(
@@ -64,7 +58,7 @@ fn process_http_tasks_system(
     mut tasks: Query<(Entity, &mut TaskComponent)>,
 ) {
     tasks.for_each_mut(|(entity, mut task)| {
-        if let Some(ev) = future::block_on(future::poll_once(&mut *task.0)) {
+        if let Some(ev) = future::block_on(future::poll_once(&mut task.0)) {
             events.send(ev);
 
             // Task is complete, so despawn entity
