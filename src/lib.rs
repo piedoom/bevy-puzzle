@@ -15,6 +15,7 @@ pub mod prelude {
     use super::*;
     pub use assets::*;
     pub use components::*;
+    pub use database::*;
     pub use events::*;
     pub use plugins::ui::widgets::*;
     pub use plugins::*;

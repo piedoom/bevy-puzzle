@@ -13,6 +13,7 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.init_resource::<MenuState>()
+            .init_resource::<PostGameMenuResource>()
             .insert_resource(Bounds::<Vec2>::default())
             .add_system_set(
                 SystemSet::on_update(GameState::menu())

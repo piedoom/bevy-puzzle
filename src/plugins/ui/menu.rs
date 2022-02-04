@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+    ops::{Deref, DerefMut},
+    time::Duration,
+};
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -64,7 +67,7 @@ pub(crate) fn ui_menu_system(
 
                         if ui.button("Endless Mode").clicked() {
                             state.replace(GameState::Game(
-                                GameType::Other(
+                                GameType::Endless(
                                     GameDetails{
                                         map: maps.get_handle(maps.iter().find(
                                             |(_,a)|
@@ -363,61 +366,95 @@ pub(crate) fn ui_pause_menu_system(mut state: ResMut<State<GameState>>, ctx: Res
         });
 }
 
-pub(crate) fn ui_post_game_system(mut state: ResMut<State<GameState>>, ctx: ResMut<EguiContext>) {
-    if let GameState::PostGame(details) = state.current().clone() {
-        // Handle post game screen
-        let t = match details.result {
-            GameResult::Lose => "Lost",
-            GameResult::Win => "Won",
-        };
+#[derive(Default)]
+pub(crate) struct PostGameMenuResource {
+    pub name_input: String,
+}
 
+pub(crate) fn ui_post_game_system(
+    mut cmd: Commands,
+    mut state: ResMut<State<GameState>>,
+    mut menu_state: ResMut<PostGameMenuResource>,
+    mut database_events: EventWriter<DatabaseEvent>,
+    username: Option<ResMut<UsernameResource>>,
+    ctx: ResMut<EguiContext>,
+) {
+    if let GameState::PostGame(details) = state.current().clone() {
         egui::containers::Window::new("post_game")
             .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
             .resizable(false)
             .collapsible(false)
             .title_bar(false)
             .show(ctx.ctx(), |ui| {
-                ui.vertical(|ui| {
-                    ui.heading(t);
+                ui.heading(match details.result {
+                    GameResult::Lose => "Lost",
+                    GameResult::Win => "Won",
                 });
                 ui.label(format!("Score: {}", details.score));
-                match details.result {
-                    GameResult::Lose => {
+
+                match &details.game_type {
+                    GameType::Campaign(campaign) => {
+                        ui.add(ProgressWidget {
+                            current_index: campaign.level_index,
+                            current_completed: details.result == GameResult::Win,
+                            length: campaign.campaign.levels.len(),
+                            ..Default::default()
+                        });
+
+                        // Specific win-loss ui items
+                        match details.result {
+                            GameResult::Win => {
+                                if let Some((_, next_index)) = campaign.next_level() {
+                                    if ui.button("Continue").clicked() {
+                                        let mut new_campaign = campaign.clone();
+                                        new_campaign.level_index = next_index;
+                                        state
+                                            .replace(GameState::PreGame(GameType::Campaign(
+                                                new_campaign,
+                                            )))
+                                            .ok();
+                                    }
+                                } else {
+                                    ui.heading("You won this campaign!");
+                                }
+                            }
+                            GameResult::Lose => {
+                                if ui.button("Retry").clicked() {
+                                    state.replace(GameState::PreGame(details.game_type)).ok();
+                                }
+                            }
+                        }
+                    }
+                    GameType::Endless(_details) => {
+                        // prompt user for their name if we lost and the `UsernameResource` is not set
+                        if username.is_none() {
+                            // name hasn't been asked for yet, do that now -
+                            ui.text_edit_singleline(&mut menu_state.name_input);
+                            if ui.button("Add my score").clicked() {
+                                // set as resource
+                                cmd.insert_resource(UsernameResource::new(
+                                    menu_state.name_input.clone(),
+                                ));
+                                // upload score
+                                database_events.send(DatabaseEvent::InsertScore(ScoreRecord {
+                                    score: details.score,
+                                    name: menu_state.name_input.to_string(),
+                                }))
+                            }
+                        }
+                        if ui.button("Replay").clicked() {
+                            state.replace(GameState::PreGame(details.game_type)).ok();
+                        }
+                    }
+                    GameType::Other(_details) => {
                         if ui.button("Retry").clicked() {
                             state.replace(GameState::PreGame(details.game_type)).ok();
                         }
                     }
-                    GameResult::Win => match &details.game_type {
-                        GameType::Campaign(c) => {
-                            ui.add(ProgressWidget {
-                                current_index: c.level_index,
-                                current_completed: true,
-                                length: c.campaign.levels.len(),
-                                ..Default::default()
-                            });
-                            if let Some((_, next_index)) = c.next_level() {
-                                if ui.button("Continue").clicked() {
-                                    let mut new_campaign = c.clone();
-                                    new_campaign.level_index = next_index;
-                                    state
-                                        .replace(GameState::PreGame(GameType::Campaign(
-                                            new_campaign,
-                                        )))
-                                        .ok();
-                                }
-                            } else {
-                                ui.heading("You won this campaign!");
-                                if ui.button("Return to Menu").clicked() {
-                                    state.replace(GameState::Menu).ok();
-                                }
-                            }
-                        }
-                        GameType::Other(_) => {
-                            if ui.button("Return to Menu").clicked() {
-                                state.replace(GameState::Menu).ok();
-                            }
-                        }
-                    },
+                }
+
+                if ui.button("Return to Menu").clicked() {
+                    state.replace(GameState::Menu).ok();
                 }
             });
     }

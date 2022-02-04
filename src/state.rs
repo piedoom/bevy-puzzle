@@ -78,6 +78,8 @@ impl CampaignDetails {
 pub enum GameType {
     /// Campaign game type and details
     Campaign(CampaignDetails),
+    /// Specific endless mode
+    Endless(GameDetails),
     /// All other game types (like custom 1-off plays or anything that isn't a
     /// campaign) are `Other`.
     Other(GameDetails),
@@ -99,7 +101,7 @@ impl GameType {
                 objective: c.current_level().0.objective.clone(),
                 options: c.current_level().0.options.clone(),
             },
-            GameType::Other(o) => o.clone(),
+            GameType::Other(o) | GameType::Endless(o) => o.clone(),
         }
     }
 
@@ -107,7 +109,7 @@ impl GameType {
     pub fn get_campaign(&self) -> Option<CampaignDetails> {
         match self {
             GameType::Campaign(c) => Some(c.clone()),
-            GameType::Other(_) => None,
+            GameType::Other(_) | GameType::Endless(_) => None,
         }
     }
 }
