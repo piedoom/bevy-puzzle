@@ -431,6 +431,7 @@ pub(crate) fn ui_post_game_system(
                     }
                     GameType::Endless(_details) => {
                         // prompt user for their name if we lost and the `UsernameResource` is not set
+                        #[cfg(not(target_arch = "wasm32"))]
                         match username {
                             None => {
                                 // name hasn't been asked for yet, do that now -
@@ -441,7 +442,6 @@ pub(crate) fn ui_post_game_system(
                                         menu_state.name_input.clone(),
                                     ));
                                     // upload score
-                                    #[cfg(not(target_arch = "wasm32"))]
                                     http_events.send(HttpEvent::InsertScore(ScoreRecord {
                                         score: details.score,
                                         name: menu_state.name_input.to_string(),
